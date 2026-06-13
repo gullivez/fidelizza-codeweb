@@ -8,53 +8,51 @@ import {
 
 import { DomainError } from '../errors/domain-error';
 
-@Catch()
-export class AllExceptionsFilter
-  implements ExceptionFilter
-{
-  catch(
-    exception: unknown,
-    host: ArgumentsHost,
-  ) {
-    const ctx = host.switchToHttp();
+const ERROR_BASE_URI = 'https://fidelizza.com/errors';
 
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const request = ctx.getRequest();
 
     if (exception instanceof DomainError) {
-      return response.status(
-        exception.status,
-      ).json({
-        type: 'business-error',
-        code: exception.code,
+      return response.status(exception.status).json({
+        type: `${ERROR_BASE_URI}/${exception.code.toLowerCase().replace(/_/g, '-')}`,
+        title: exception.code,
         status: exception.status,
         detail: exception.message,
-        path: request.url,
+        instance: request.url,
       });
     }
 
     if (exception instanceof HttpException) {
-      return response.status(
-        exception.getStatus(),
-      ).json({
-        type: 'http-error',
-        status: exception.getStatus(),
-        detail: exception.message,
-        path: request.url,
+      const status = exception.getStatus();
+      const res = exception.getResponse();
+      const detail =
+        typeof res === 'string'
+          ? res
+          : (res as Record<string, unknown>).message ?? exception.message;
+
+      return response.status(status).json({
+        type: `${ERROR_BASE_URI}/http-error`,
+        title: exception.name,
+        status,
+        detail,
+        instance: request.url,
       });
     }
-   console.error(exception);
 
-  return response
-   .status(HttpStatus.INTERNAL_SERVER_ERROR)
-   .json({
-     type: 'internal-error',
-     status: 500,
-     detail:
-       exception instanceof Error
-         ? exception.message
-          : 'Unexpected error',
-     path: request.url,
+    console.error(exception);
+
+    return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      type: `${ERROR_BASE_URI}/internal-error`,
+      title: 'Internal Server Error',
+      status: 500,
+      detail:
+        exception instanceof Error ? exception.message : 'Unexpected error',
+      instance: request.url,
     });
   }
 }
