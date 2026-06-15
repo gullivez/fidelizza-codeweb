@@ -48,7 +48,7 @@ function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        subtitle={activeRestaurant.name}
+        subtitle={activeRestaurant?.name ?? ""}
         action={actions}
       />
 

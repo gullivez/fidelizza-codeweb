@@ -81,7 +81,7 @@ function ClientesPage() {
     <>
       <PageHeader
         title="Clientes"
-        subtitle={`Sua base de clientes — ${activeRestaurant.name}`}
+        subtitle={`Sua base de clientes — ${activeRestaurant?.name ?? ""}`}
         action={searchSlot}
       />
 

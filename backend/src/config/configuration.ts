@@ -4,6 +4,7 @@ export default () => ({
 
   database: {
     url: process.env.DATABASE_URL,
+    migrationUrl: process.env.DATABASE_MIGRATION_URL,
   },
 
   redis: {

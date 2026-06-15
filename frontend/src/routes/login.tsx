@@ -1,5 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { apiRequest, setTokens } from "@/lib/api-client";
+import type { ApiRestaurant, LoginResponse } from "@/lib/api-types";
+import { storeAuthData } from "@/lib/auth-store";
 import { Eye, EyeOff, Loader2, Sparkles, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +28,7 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [state, setState] = useState<FormState>("idle");
   const emailRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     emailRef.current?.focus();
@@ -34,12 +38,26 @@ function LoginPage() {
     e.preventDefault();
     if (state === "loading") return;
     setState("loading");
-    // Mock: blocked@fidelizza.com → blocked; anything else → error
-    await new Promise((r) => setTimeout(r, 900));
-    if (email.trim().toLowerCase() === "blocked@fidelizza.com") {
-      setState("blocked");
-    } else {
-      setState("error");
+
+    try {
+      const loginData = await apiRequest<LoginResponse>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      setTokens(loginData.accessToken, loginData.refreshToken);
+
+      const restaurants = await apiRequest<ApiRestaurant[]>("/restaurants");
+      storeAuthData(loginData.user, restaurants);
+
+      void navigate({ to: "/" });
+    } catch (err: unknown) {
+      const status = (err as { status?: number }).status;
+      if (status === 403) {
+        setState("blocked");
+      } else {
+        setState("error");
+      }
     }
   };
 

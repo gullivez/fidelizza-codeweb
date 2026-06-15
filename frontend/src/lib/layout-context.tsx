@@ -1,10 +1,14 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { mockLayoutDefaults, mockRestaurants, type Restaurant } from "./mock-data";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { ApiRestaurant, AuthUser } from "./api-types";
+import { consumeAuthData } from "./auth-store";
 
 type LayoutContextValue = {
-  restaurants: Restaurant[];
-  activeRestaurant: Restaurant;
-  setActiveRestaurant: (r: Restaurant) => void;
+  restaurants: ApiRestaurant[];
+  activeRestaurant: ApiRestaurant | null;
+  setActiveRestaurant: (r: ApiRestaurant) => void;
+  setRestaurants: (list: ApiRestaurant[]) => void;
+  currentUser: AuthUser | null;
+  setCurrentUser: (user: AuthUser) => void;
   whatsappConnected: boolean;
   setWhatsappConnected: (v: boolean) => void;
 };
@@ -12,18 +16,42 @@ type LayoutContextValue = {
 const LayoutContext = createContext<LayoutContextValue | null>(null);
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
-  const [activeRestaurant, setActiveRestaurant] = useState<Restaurant>(mockRestaurants[0]);
-  const [whatsappConnected, setWhatsappConnected] = useState(mockLayoutDefaults.whatsappConnected);
+  const [restaurants, setRestaurantsState] = useState<ApiRestaurant[]>([]);
+  const [activeRestaurant, setActiveRestaurant] = useState<ApiRestaurant | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [whatsappConnected, setWhatsappConnected] = useState(false);
+
+  useEffect(() => {
+    const { user, restaurants } = consumeAuthData();
+    if (user) setCurrentUser(user);
+    if (restaurants.length) setRestaurants(restaurants);
+  // Roda uma única vez ao montar — consumeAuthData() limpa o store após leitura
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setRestaurants = useCallback((list: ApiRestaurant[]) => {
+    setRestaurantsState(list);
+    setActiveRestaurant((prev) => {
+      if (prev) {
+        const still = list.find((r) => r.id === prev.id);
+        return still ?? list[0] ?? null;
+      }
+      return list[0] ?? null;
+    });
+  }, []);
 
   const value = useMemo<LayoutContextValue>(
     () => ({
-      restaurants: mockRestaurants,
+      restaurants,
       activeRestaurant,
       setActiveRestaurant,
+      setRestaurants,
+      currentUser,
+      setCurrentUser,
       whatsappConnected,
       setWhatsappConnected,
     }),
-    [activeRestaurant, whatsappConnected],
+    [restaurants, activeRestaurant, setRestaurants, currentUser, whatsappConnected],
   );
 
   return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>;

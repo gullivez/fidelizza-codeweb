@@ -16,7 +16,8 @@ export class RestaurantsService {
     return this.db.runInTenantContext(accountId, (sql) => sql`
       SELECT id, name, slug, phone, status, created_at
       FROM restaurants
-      WHERE status = 'active'
+      WHERE account_id = ${accountId}
+        AND status = 'active'
       ORDER BY name
     `);
   }
@@ -27,6 +28,7 @@ export class RestaurantsService {
       SELECT id, name, slug, phone, status, created_at, updated_at
       FROM restaurants
       WHERE id = ${id}
+        AND account_id = ${accountId}
     `);
     if (!rows.length) throw new NotFoundException('Restaurante não encontrado');
     return rows[0];
@@ -52,6 +54,7 @@ export class RestaurantsService {
         phone      = COALESCE(${dto.phone ?? null}, phone),
         updated_at = now()
       WHERE id = ${id}
+        AND account_id = ${accountId}
       RETURNING id, name, slug, phone, status, updated_at
     `);
     if (!rows.length) throw new NotFoundException('Restaurante não encontrado');
@@ -63,6 +66,7 @@ export class RestaurantsService {
     const rows = await this.db.runInTenantContext(accountId, (sql) => sql`
       UPDATE restaurants SET status = 'inactive', updated_at = now()
       WHERE id = ${id}
+        AND account_id = ${accountId}
       RETURNING id
     `);
     if (!rows.length) throw new NotFoundException('Restaurante não encontrado');

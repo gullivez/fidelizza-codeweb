@@ -1,4 +1,5 @@
 import { ChevronUp, LogOut, User } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,12 +9,33 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { mockUser } from "@/lib/mock-data";
 import { useSidebar } from "@/components/ui/sidebar";
+import { apiRequest, clearTokens } from "@/lib/api-client";
+import { useLayout } from "@/lib/layout-context";
 
 export function UserMenu() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { currentUser } = useLayout();
+  const navigate = useNavigate();
+
+  const initials = currentUser?.name
+    ? currentUser.name
+        .split(" ")
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+    : "?";
+
+  const handleLogout = async () => {
+    try {
+      await apiRequest("/auth/logout", { method: "POST" });
+    } finally {
+      clearTokens();
+      void navigate({ to: "/login" });
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -21,17 +43,17 @@ export function UserMenu() {
         <button className="flex w-full items-center gap-2 rounded-md p-2 hover:bg-zinc-100 transition-colors">
           <Avatar className="h-7 w-7">
             <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
-              {mockUser.initials}
+              {initials}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <>
               <div className="min-w-0 flex-1 text-left">
                 <div className="text-sm font-medium text-foreground truncate">
-                  {mockUser.name}
+                  {currentUser?.name ?? "—"}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {mockUser.email}
+                  {currentUser?.email ?? "—"}
                 </div>
               </div>
               <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -47,7 +69,10 @@ export function UserMenu() {
           Perfil
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => void handleLogout()}
+        >
           <LogOut className="mr-2 h-4 w-4" />
           Sair
         </DropdownMenuItem>

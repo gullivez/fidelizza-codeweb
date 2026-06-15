@@ -82,9 +82,9 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string): Promise<LoginResponseDto> {
-    let payload: JwtPayload;
+    let payload: { sub: string };
     try {
-      payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+      payload = this.jwtService.verify<{ sub: string }>(refreshToken, {
         secret: this.configService.get<string>('jwt.refreshSecret')!,
       });
     } catch {
@@ -100,20 +100,53 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token revogado');
     }
 
+    // Recarregar usuário do banco — o refresh token só carrega { sub },
+    // então precisamos reconstituir o payload completo aqui.
+    const sql = this.db.getSql();
+    const [user] = await sql<{
+      id: string;
+      account_id: string;
+      name: string;
+      email: string;
+      role: 'owner' | 'admin' | 'operator';
+      is_active: boolean;
+    }[]>`
+      SELECT id, account_id, name, email, role, is_active
+      FROM app_user WHERE id = ${payload.sub} LIMIT 1
+    `;
+
+    if (!user || !user.is_active) {
+      throw new UnauthorizedException('Usuário inativo');
+    }
+
+    const allowedRestaurantIds = await this.resolveAllowedRestaurants(
+      sql,
+      user.id,
+      user.account_id,
+      user.role,
+    );
+
+    const fullPayload: JwtPayload = {
+      sub: user.id,
+      accountId: user.account_id,
+      role: user.role,
+      allowedRestaurantIds,
+    };
+
     const { accessToken, refreshToken: newRefresh } = await this.issueTokens(
-      payload.sub,
-      payload,
+      user.id,
+      fullPayload,
     );
 
     return {
       accessToken,
       refreshToken: newRefresh,
       user: {
-        id: payload.sub,
-        name: '',
-        email: '',
-        role: payload.role,
-        allowedRestaurantIds: payload.allowedRestaurantIds,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        allowedRestaurantIds,
       },
     };
   }

@@ -8,6 +8,7 @@ export const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
 
   DATABASE_URL: z.string(),
+  DATABASE_MIGRATION_URL: z.string().optional(),
 
   REDIS_HOST: z.string(),
 
