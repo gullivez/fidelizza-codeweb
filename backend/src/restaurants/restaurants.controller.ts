@@ -9,11 +9,14 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { RestaurantsService } from './restaurants.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { RestaurantAccessGuard } from '../common/guards/restaurant-access.guard';
 
+@ApiTags('Restaurants')
+@ApiBearerAuth()
 @Controller('restaurants')
 @UseGuards(RestaurantAccessGuard)
 export class RestaurantsController {

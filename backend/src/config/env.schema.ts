@@ -21,6 +21,10 @@ export const envSchema = z.object({
   JWT_REFRESH_SECRET: z
     .string()
     .min(32, 'JWT_REFRESH_SECRET deve ter no mínimo 32 caracteres'),
+
+  AES_SECRET: z
+    .string()
+    .min(32, 'AES_SECRET deve ter no mínimo 32 caracteres'),
 });
 
 export type Env = z.infer<typeof envSchema>;

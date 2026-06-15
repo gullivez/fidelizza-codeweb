@@ -2,8 +2,10 @@ import { randomUUID } from 'crypto';
 
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { BullModule } from '@nestjs/bullmq';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,6 +18,9 @@ import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { TenantModule } from './tenant/tenant.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { CustomersModule } from './customers/customers.module';
+import { OrdersModule } from './orders/orders.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
@@ -38,11 +43,24 @@ import { TenantContextService } from './tenant/tenant-context.service';
       load: [configuration],
       validate: validateEnv,
     }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get<string>('redis.host'),
+          port: config.get<number>('redis.port'),
+        },
+      }),
+    }),
+    EventEmitterModule.forRoot(),
     DatabaseModule,
     RedisModule,
     AuthModule,
     TenantModule,
     RestaurantsModule,
+    IntegrationsModule,
+    CustomersModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [

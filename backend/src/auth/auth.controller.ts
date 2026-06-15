@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -6,6 +7,7 @@ import { SkipAuth } from '../common/decorators/skip-auth.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { JwtPayload } from './auth.types';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -30,6 +32,7 @@ export class AuthController {
     return this.authService.logout(user.sub);
   }
 
+  @ApiBearerAuth()
   @Get('me')
   me(@CurrentUser() user: JwtPayload) {
     return this.authService.me(user.sub);
