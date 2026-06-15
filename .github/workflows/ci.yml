@@ -14,14 +14,27 @@ jobs:
       run:
         working-directory: backend
 
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      NODE_ENV: test
+      PORT: 3000
+      # App conecta como fidelizza_app (sem BYPASSRLS) — prova o isolamento de tenant
+      DATABASE_URL: postgresql://fidelizza_app:postgres@localhost:5432/fidelizza_test
+      # Migrations e seed conectam como superuser
+      DATABASE_MIGRATION_URL: postgresql://postgres:postgres@localhost:5432/fidelizza_test
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_SECRET: ci-secret-placeholder-must-be-32-chars-long
+      JWT_REFRESH_SECRET: ci-refresh-secret-placeholder-32-chars
+      AES_SECRET: ci-aes-secret-placeholder-must-be-32-characters
+
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: fidelizza
-          POSTGRES_USER: fidelizza
-          POSTGRES_PASSWORD: fidelizza
-          POSTGRES_APP_PASSWORD: fidelizza_app
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fidelizza_test
         ports:
           - 5432:5432
         options: >-
@@ -40,38 +53,36 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    env:
-      NODE_ENV: test
-      PORT: 3000
-      # App conecta como fidelizza_app (sem BYPASSRLS) — prova o isolamento de tenant
-      DATABASE_URL: postgresql://fidelizza_app:fidelizza_app@localhost:5432/fidelizza
-      # Migrations e seed conectam como superuser
-      DATABASE_MIGRATION_URL: postgresql://fidelizza:fidelizza@localhost:5432/fidelizza
-      POSTGRES_APP_PASSWORD: fidelizza_app
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
-      JWT_SECRET: ci-secret-placeholder-must-be-32-chars-long
-      JWT_REFRESH_SECRET: ci-refresh-secret-placeholder-32-chars
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Create app role in PostgreSQL
+      - name: Setup test database
+        env:
+          PGPASSWORD: postgres
         run: |
-          PGPASSWORD=fidelizza psql -h localhost -U fidelizza -d fidelizza -c \
-            "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'fidelizza_app') THEN CREATE ROLE fidelizza_app LOGIN PASSWORD 'fidelizza_app'; END IF; END\$\$; GRANT CONNECT ON DATABASE fidelizza TO fidelizza_app; GRANT USAGE ON SCHEMA public TO fidelizza_app; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO fidelizza_app; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO fidelizza_app;"
+          psql -h localhost -U postgres -d fidelizza_test -c "
+            CREATE USER fidelizza_app WITH PASSWORD 'postgres';
+            GRANT CONNECT ON DATABASE fidelizza_test TO fidelizza_app;
+            GRANT USAGE ON SCHEMA public TO fidelizza_app;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO fidelizza_app;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT USAGE, SELECT ON SEQUENCES TO fidelizza_app;
+          "
 
       - name: Run migrations
         run: npm run migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fidelizza_test
 
       - name: Lint
         run: npm run lint
