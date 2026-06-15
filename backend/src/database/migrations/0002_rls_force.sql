@@ -11,10 +11,18 @@ CREATE POLICY tenant_isolation ON restaurants
   USING     (account_id = current_setting('app.account_id', true)::uuid)
   WITH CHECK (account_id = current_setting('app.account_id', true)::uuid);
 
+-- USING permite SELECT sem contexto (login ainda não tem account_id) ou com contexto correto.
+-- WITH CHECK sempre exige account_id correto — escrita nunca relaxada.
 DROP POLICY IF EXISTS tenant_isolation ON app_user;
 CREATE POLICY tenant_isolation ON app_user
-  USING     (account_id = current_setting('app.account_id', true)::uuid)
-  WITH CHECK (account_id = current_setting('app.account_id', true)::uuid);
+  USING (
+    current_setting('app.account_id', true) IS NULL
+    OR current_setting('app.account_id', true) = ''
+    OR account_id = current_setting('app.account_id', true)::uuid
+  )
+  WITH CHECK (
+    account_id = current_setting('app.account_id', true)::uuid
+  );
 
 DROP POLICY IF EXISTS tenant_isolation ON user_restaurant_access;
 CREATE POLICY tenant_isolation ON user_restaurant_access
