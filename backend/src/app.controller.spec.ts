@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import type { Response } from 'express';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -36,7 +37,8 @@ describe('AppController', () => {
   });
 
   describe('GET /health/ready', () => {
-    const mockRes = { status: jest.fn() } as any;
+    const mockStatus = jest.fn();
+    const mockRes = { status: mockStatus } as unknown as Response;
 
     it('returns ready when DB and Redis are up', async () => {
       mockDatabaseService.testConnection.mockResolvedValue([{ status: 1 }]);
@@ -48,7 +50,7 @@ describe('AppController', () => {
         status: 'ready',
         checks: { database: 'ok', redis: 'ok' },
       });
-      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockStatus).not.toHaveBeenCalled();
     });
 
     it('returns degraded with 503 when Redis is down', async () => {
@@ -61,7 +63,7 @@ describe('AppController', () => {
         status: 'degraded',
         checks: { database: 'ok', redis: 'error' },
       });
-      expect(mockRes.status).toHaveBeenCalledWith(503);
+      expect(mockStatus).toHaveBeenCalledWith(503);
     });
   });
 });

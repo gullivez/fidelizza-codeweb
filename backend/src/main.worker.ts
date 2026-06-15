@@ -54,4 +54,4 @@ async function bootstrapWorker() {
   app.enableShutdownHooks();
 }
 
-bootstrapWorker();
+void bootstrapWorker();

@@ -4,7 +4,10 @@ import { IntegrationAdapter } from './integration.adapter';
 
 @Injectable()
 export class MockAnotaAiAdapter extends IntegrationAdapter {
-  fetchOrders(_credentials: IntegrationCredentials, date: Date): Promise<RawOrder[]> {
+  fetchOrders(
+    _credentials: IntegrationCredentials,
+    date: Date,
+  ): Promise<RawOrder[]> {
     const day = date.toISOString().slice(0, 10);
 
     const orders: RawOrder[] = [
@@ -19,8 +22,20 @@ export class MockAnotaAiAdapter extends IntegrationAdapter {
           phone: '+5543999990001',
         },
         items: [
-          { externalId: 'item-001', name: 'X-Burguer', quantity: 2, unitPrice: 22.0, totalPrice: 44.0 },
-          { externalId: 'item-002', name: 'Suco Laranja', quantity: 1, unitPrice: 14.9, totalPrice: 14.9 },
+          {
+            externalId: 'item-001',
+            name: 'X-Burguer',
+            quantity: 2,
+            unitPrice: 22.0,
+            totalPrice: 44.0,
+          },
+          {
+            externalId: 'item-002',
+            name: 'Suco Laranja',
+            quantity: 1,
+            unitPrice: 14.9,
+            totalPrice: 14.9,
+          },
         ],
       },
       {
@@ -34,7 +49,13 @@ export class MockAnotaAiAdapter extends IntegrationAdapter {
           phone: '+5543999990001',
         },
         items: [
-          { externalId: 'item-003', name: 'Combo Frango', quantity: 1, unitPrice: 32.5, totalPrice: 32.5 },
+          {
+            externalId: 'item-003',
+            name: 'Combo Frango',
+            quantity: 1,
+            unitPrice: 32.5,
+            totalPrice: 32.5,
+          },
         ],
       },
       {
@@ -48,7 +69,13 @@ export class MockAnotaAiAdapter extends IntegrationAdapter {
           phone: '+5543999990002',
         },
         items: [
-          { externalId: 'item-004', name: 'Pizza Mussarela M', quantity: 1, unitPrice: 45.0, totalPrice: 45.0 },
+          {
+            externalId: 'item-004',
+            name: 'Pizza Mussarela M',
+            quantity: 1,
+            unitPrice: 45.0,
+            totalPrice: 45.0,
+          },
         ],
       },
     ];

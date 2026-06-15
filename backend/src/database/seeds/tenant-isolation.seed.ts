@@ -49,25 +49,23 @@ export async function seedTenantIsolation(): Promise<SeedResult> {
       RETURNING id
     `;
 
-    const [userA] = await sql`
+    await sql`
       INSERT INTO app_user (account_id, email, password_hash, name, role)
-      VALUES (${accountA.id}, 'owner@tenant-a.com', ${passwordHash}, 'Owner A', 'owner')
-      RETURNING id
+      VALUES (${accountA.id as string}, 'owner@tenant-a.com', ${passwordHash}, 'Owner A', 'owner')
     `;
-    const [userB] = await sql`
+    await sql`
       INSERT INTO app_user (account_id, email, password_hash, name, role)
-      VALUES (${accountB.id}, 'owner@tenant-b.com', ${passwordHash}, 'Owner B', 'owner')
-      RETURNING id
+      VALUES (${accountB.id as string}, 'owner@tenant-b.com', ${passwordHash}, 'Owner B', 'owner')
     `;
 
     const [restaurantA] = await sql`
       INSERT INTO restaurants (account_id, name, slug)
-      VALUES (${accountA.id}, 'Restaurant A', 'restaurant-a')
+      VALUES (${accountA.id as string}, 'Restaurant A', 'restaurant-a')
       RETURNING id
     `;
     const [restaurantB] = await sql`
       INSERT INTO restaurants (account_id, name, slug)
-      VALUES (${accountB.id}, 'Restaurant B', 'restaurant-b')
+      VALUES (${accountB.id as string}, 'Restaurant B', 'restaurant-b')
       RETURNING id
     `;
 
@@ -110,8 +108,12 @@ if (require.main === module) {
   seedTenantIsolation()
     .then((result) => {
       console.log('Seed concluído:');
-      console.log(`  Account A: ${result.accountAId} | User: ${result.userAEmail}`);
-      console.log(`  Account B: ${result.accountBId} | User: ${result.userBEmail}`);
+      console.log(
+        `  Account A: ${result.accountAId} | User: ${result.userAEmail}`,
+      );
+      console.log(
+        `  Account B: ${result.accountBId} | User: ${result.userBEmail}`,
+      );
       console.log(`  Restaurant A: ${result.restaurantAId}`);
       console.log(`  Restaurant B: ${result.restaurantBId}`);
       console.log(`  Senha: ${result.password}`);

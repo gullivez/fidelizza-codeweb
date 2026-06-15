@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
+import type { Request } from 'express';
 
 import { TenantContextService } from '../../tenant/tenant-context.service';
 import { SKIP_AUTH_KEY } from '../decorators/skip-auth.decorator';
@@ -25,8 +26,10 @@ export class TenantContextInterceptor implements NestInterceptor {
     ]);
     if (skip) return next.handle();
 
-    const request = ctx.switchToHttp().getRequest();
-    const user = request.user as JwtPayload | undefined;
+    const request = ctx
+      .switchToHttp()
+      .getRequest<Request & { user?: JwtPayload }>();
+    const user = request.user;
     if (!user) return next.handle();
 
     return new Observable((subscriber) => {

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { DatabaseService } from '../database/database.service';
@@ -28,7 +32,10 @@ export class IntegrationsService {
   encrypt(text: string): string {
     const iv = randomBytes(IV_LENGTH);
     const cipher = createCipheriv(ALGORITHM, this.aesKey, iv);
-    const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+    const encrypted = Buffer.concat([
+      cipher.update(text, 'utf8'),
+      cipher.final(),
+    ]);
     return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
   }
 
@@ -37,38 +44,55 @@ export class IntegrationsService {
     const iv = Buffer.from(ivHex, 'hex');
     const data = Buffer.from(dataHex, 'hex');
     const decipher = createDecipheriv(ALGORITHM, this.aesKey, iv);
-    return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+    return Buffer.concat([decipher.update(data), decipher.final()]).toString(
+      'utf8',
+    );
   }
 
-  decryptCredentials(credentialsEnc: string): { clientId: string; clientSecret: string } {
-    return JSON.parse(this.decrypt(credentialsEnc)) as { clientId: string; clientSecret: string };
+  decryptCredentials(credentialsEnc: string): {
+    clientId: string;
+    clientSecret: string;
+  } {
+    return JSON.parse(this.decrypt(credentialsEnc)) as {
+      clientId: string;
+      clientSecret: string;
+    };
   }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
 
   async findAll(restaurantId: string): Promise<IntegrationResponseDto[]> {
     const { accountId } = this.tenantContext.get();
-    const rows = await this.db.runInTenantContext(accountId, (sql) => sql`
+    const rows = await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
       SELECT id, restaurant_id, provider, status,
              sync_time_1, sync_time_2, last_sync_at, last_error, created_at
       FROM integration
       WHERE restaurant_id = ${restaurantId}
         AND account_id    = ${accountId}
       ORDER BY created_at DESC
-    `);
-    return rows.map(this.mapRow);
+    `,
+    );
+    return rows.map((r) => this.mapRow(r));
   }
 
-  async findOne(restaurantId: string, id: string): Promise<IntegrationResponseDto> {
+  async findOne(
+    restaurantId: string,
+    id: string,
+  ): Promise<IntegrationResponseDto> {
     const { accountId } = this.tenantContext.get();
-    const rows = await this.db.runInTenantContext(accountId, (sql) => sql`
+    const rows = await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
       SELECT id, restaurant_id, provider, status,
              sync_time_1, sync_time_2, last_sync_at, last_error, created_at
       FROM integration
       WHERE id            = ${id}
         AND restaurant_id = ${restaurantId}
         AND account_id    = ${accountId}
-    `);
+    `,
+    );
     if (!rows.length) throw new NotFoundException('Integração não encontrada');
     return this.mapRow(rows[0]);
   }
@@ -95,14 +119,22 @@ export class IntegrationsService {
     `;
   }
 
-  async create(restaurantId: string, dto: CreateIntegrationDto): Promise<IntegrationResponseDto> {
+  async create(
+    restaurantId: string,
+    dto: CreateIntegrationDto,
+  ): Promise<IntegrationResponseDto> {
     const { accountId } = this.tenantContext.get();
     const credentialsEnc = this.encrypt(
-      JSON.stringify({ clientId: dto.clientId, clientSecret: dto.clientSecret }),
+      JSON.stringify({
+        clientId: dto.clientId,
+        clientSecret: dto.clientSecret,
+      }),
     );
 
     try {
-      const rows = await this.db.runInTenantContext(accountId, (sql) => sql`
+      const rows = await this.db.runInTenantContext(
+        accountId,
+        (sql) => sql`
         INSERT INTO integration
           (account_id, restaurant_id, provider, credentials_enc, sync_time_1, sync_time_2)
         VALUES
@@ -110,19 +142,28 @@ export class IntegrationsService {
            ${credentialsEnc}, ${dto.syncTime1 ?? '03:00'}, ${dto.syncTime2 ?? null})
         RETURNING id, restaurant_id, provider, status,
                   sync_time_1, sync_time_2, last_sync_at, last_error, created_at
-      `);
+      `,
+      );
       return this.mapRow(rows[0]);
     } catch (err: unknown) {
       if ((err as { code?: string }).code === '23505') {
-        throw new ConflictException('Já existe uma integração para este restaurante');
+        throw new ConflictException(
+          'Já existe uma integração para este restaurante',
+        );
       }
       throw err;
     }
   }
 
-  async update(restaurantId: string, id: string, dto: UpdateIntegrationDto): Promise<IntegrationResponseDto> {
+  async update(
+    restaurantId: string,
+    id: string,
+    dto: UpdateIntegrationDto,
+  ): Promise<IntegrationResponseDto> {
     const { accountId } = this.tenantContext.get();
-    const rows = await this.db.runInTenantContext(accountId, (sql) => sql`
+    const rows = await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
       UPDATE integration
       SET
         sync_time_1 = COALESCE(${dto.syncTime1 ?? null}, sync_time_1),
@@ -135,20 +176,24 @@ export class IntegrationsService {
         AND account_id    = ${accountId}
       RETURNING id, restaurant_id, provider, status,
                 sync_time_1, sync_time_2, last_sync_at, last_error, created_at
-    `);
+    `,
+    );
     if (!rows.length) throw new NotFoundException('Integração não encontrada');
     return this.mapRow(rows[0]);
   }
 
   async remove(restaurantId: string, id: string): Promise<void> {
     const { accountId } = this.tenantContext.get();
-    const rows = await this.db.runInTenantContext(accountId, (sql) => sql`
+    const rows = await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
       DELETE FROM integration
       WHERE id            = ${id}
         AND restaurant_id = ${restaurantId}
         AND account_id    = ${accountId}
       RETURNING id
-    `);
+    `,
+    );
     if (!rows.length) throw new NotFoundException('Integração não encontrada');
   }
 
@@ -168,15 +213,15 @@ export class IntegrationsService {
 
   private mapRow(row: Record<string, unknown>): IntegrationResponseDto {
     return {
-      id:           row['id'] as string,
+      id: row['id'] as string,
       restaurantId: row['restaurant_id'] as string,
-      provider:     row['provider'] as string,
-      status:       row['status'] as string,
-      syncTime1:    row['sync_time_1'] as string,
-      syncTime2:    (row['sync_time_2'] as string | null) ?? null,
-      lastSyncAt:   (row['last_sync_at'] as Date | null) ?? null,
-      lastError:    (row['last_error'] as string | null) ?? null,
-      createdAt:    row['created_at'] as Date,
+      provider: row['provider'] as string,
+      status: row['status'] as string,
+      syncTime1: row['sync_time_1'] as string,
+      syncTime2: (row['sync_time_2'] as string | null) ?? null,
+      lastSyncAt: (row['last_sync_at'] as Date | null) ?? null,
+      lastError: (row['last_error'] as string | null) ?? null,
+      createdAt: row['created_at'] as Date,
     };
   }
 }

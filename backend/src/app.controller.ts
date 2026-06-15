@@ -19,8 +19,8 @@ export class AppController {
   getHello() {
     return {
       status: 'ok',
-      env: this.configService.get('nodeEnv'),
-      port: this.configService.get('port'),
+      env: this.configService.get<string>('nodeEnv'),
+      port: this.configService.get<number>('port'),
     };
   }
 

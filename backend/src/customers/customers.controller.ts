@@ -17,7 +17,12 @@ export class CustomersController {
     @Param('restaurantId') restaurantId: string,
     @Query() query: ListCustomersQueryDto,
   ) {
-    return this.customersService.findAll(restaurantId, query.page, query.limit, query.search);
+    return this.customersService.findAll(
+      restaurantId,
+      query.page,
+      query.limit,
+      query.search,
+    );
   }
 
   @Get(':customerId')

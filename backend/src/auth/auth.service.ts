@@ -1,8 +1,5 @@
 import { createHash } from 'crypto';
-import {
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -91,9 +88,7 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token inválido');
     }
 
-    const stored = await this.redis
-      .getClient()
-      .get(`refresh:${payload.sub}`);
+    const stored = await this.redis.getClient().get(`refresh:${payload.sub}`);
     const incoming = this.hashToken(refreshToken);
 
     if (!stored || stored !== incoming) {
@@ -103,14 +98,16 @@ export class AuthService {
     // Recarregar usuário do banco — o refresh token só carrega { sub },
     // então precisamos reconstituir o payload completo aqui.
     const sql = this.db.getSql();
-    const [user] = await sql<{
-      id: string;
-      account_id: string;
-      name: string;
-      email: string;
-      role: 'owner' | 'admin' | 'operator';
-      is_active: boolean;
-    }[]>`
+    const [user] = await sql<
+      {
+        id: string;
+        account_id: string;
+        name: string;
+        email: string;
+        role: 'owner' | 'admin' | 'operator';
+        is_active: boolean;
+      }[]
+    >`
       SELECT id, account_id, name, email, role, is_active
       FROM app_user WHERE id = ${payload.sub} LIMIT 1
     `;
@@ -158,7 +155,13 @@ export class AuthService {
   async me(userId: string) {
     const sql = this.db.getSql();
     const [user] = await sql<
-      { id: string; name: string; email: string; role: string; account_id: string }[]
+      {
+        id: string;
+        name: string;
+        email: string;
+        role: string;
+        account_id: string;
+      }[]
     >`SELECT id, name, email, role, account_id FROM app_user WHERE id = ${userId}`;
 
     if (!user) throw new UnauthorizedException();

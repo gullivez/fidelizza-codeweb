@@ -11,6 +11,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import * as bcrypt from 'bcrypt';
+import type { Server } from 'http';
 import postgres from 'postgres';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -38,6 +39,7 @@ interface InsertedIds {
 
 describe('Tenant Isolation — /restaurants', () => {
   let app: INestApplication;
+  let httpServer: Server;
   let ids!: InsertedIds;
   let tokenA: string;
   let refreshTokenA: string;
@@ -78,7 +80,8 @@ describe('Tenant Isolation — /restaurants', () => {
         VALUES ('direct', 'IT Tenant A', ${IT_ACCOUNT_SLUG_A})
         RETURNING id
       `;
-      if (!accountA?.id) throw new Error('[beforeAll] INSERT account A não retornou id');
+      if (!accountA?.id)
+        throw new Error('[beforeAll] INSERT account A não retornou id');
       console.log(`[beforeAll] account A inserido: ${accountA.id as string}`);
 
       const [accountB] = await seedSql`
@@ -86,7 +89,8 @@ describe('Tenant Isolation — /restaurants', () => {
         VALUES ('direct', 'IT Tenant B', ${IT_ACCOUNT_SLUG_B})
         RETURNING id
       `;
-      if (!accountB?.id) throw new Error('[beforeAll] INSERT account B não retornou id');
+      if (!accountB?.id)
+        throw new Error('[beforeAll] INSERT account B não retornou id');
       console.log(`[beforeAll] account B inserido: ${accountB.id as string}`);
 
       const [userA] = await seedSql`
@@ -94,7 +98,8 @@ describe('Tenant Isolation — /restaurants', () => {
         VALUES (${accountA.id as string}, ${IT_USER_A_EMAIL}, ${passwordHash}, 'IT Owner A', 'owner')
         RETURNING id
       `;
-      if (!userA?.id) throw new Error('[beforeAll] INSERT app_user A não retornou id');
+      if (!userA?.id)
+        throw new Error('[beforeAll] INSERT app_user A não retornou id');
       console.log(`[beforeAll] user A inserido: ${userA.id as string}`);
 
       const [userB] = await seedSql`
@@ -102,7 +107,8 @@ describe('Tenant Isolation — /restaurants', () => {
         VALUES (${accountB.id as string}, ${IT_USER_B_EMAIL}, ${passwordHash}, 'IT Owner B', 'owner')
         RETURNING id
       `;
-      if (!userB?.id) throw new Error('[beforeAll] INSERT app_user B não retornou id');
+      if (!userB?.id)
+        throw new Error('[beforeAll] INSERT app_user B não retornou id');
       console.log(`[beforeAll] user B inserido: ${userB.id as string}`);
 
       const [restaurantA] = await seedSql`
@@ -110,16 +116,22 @@ describe('Tenant Isolation — /restaurants', () => {
         VALUES (${accountA.id as string}, 'IT Restaurant A', ${IT_RESTAURANT_SLUG_A})
         RETURNING id
       `;
-      if (!restaurantA?.id) throw new Error('[beforeAll] INSERT restaurant A não retornou id');
-      console.log(`[beforeAll] restaurant A inserido: ${restaurantA.id as string}`);
+      if (!restaurantA?.id)
+        throw new Error('[beforeAll] INSERT restaurant A não retornou id');
+      console.log(
+        `[beforeAll] restaurant A inserido: ${restaurantA.id as string}`,
+      );
 
       const [restaurantB] = await seedSql`
         INSERT INTO restaurants (account_id, name, slug)
         VALUES (${accountB.id as string}, 'IT Restaurant B', ${IT_RESTAURANT_SLUG_B})
         RETURNING id
       `;
-      if (!restaurantB?.id) throw new Error('[beforeAll] INSERT restaurant B não retornou id');
-      console.log(`[beforeAll] restaurant B inserido: ${restaurantB.id as string}`);
+      if (!restaurantB?.id)
+        throw new Error('[beforeAll] INSERT restaurant B não retornou id');
+      console.log(
+        `[beforeAll] restaurant B inserido: ${restaurantB.id as string}`,
+      );
 
       ids = {
         accountAId: accountA.id as string,
@@ -130,7 +142,11 @@ describe('Tenant Isolation — /restaurants', () => {
         restaurantBId: restaurantB.id as string,
       };
 
-      console.log('[beforeAll] Seed concluído:', { accounts: 2, users: 2, restaurants: 2 });
+      console.log('[beforeAll] Seed concluído:', {
+        accounts: 2,
+        users: 2,
+        restaurants: 2,
+      });
     } catch (err) {
       console.error('[beforeAll] Seed falhou — abortando testes:', err);
       await seedSql.end();
@@ -142,8 +158,11 @@ describe('Tenant Isolation — /restaurants', () => {
     // App conecta via DATABASE_URL (fidelizza_app, sem BYPASSRLS) — isso prova o isolamento
     app = await NestFactory.create(AppModule, { logger: false });
     app.useGlobalFilters(new AllExceptionsFilter());
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
+    httpServer = app.getHttpServer() as Server;
   }, 30_000);
 
   afterAll(async () => {
@@ -153,7 +172,8 @@ describe('Tenant Isolation — /restaurants', () => {
     // — não toca dados de outros seeds (ex.: owner@tenant-a.com do seed manual)
     if (!ids) return;
 
-    const migrationUrl = process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL!;
+    const migrationUrl =
+      process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL!;
     const seedSql = postgres(migrationUrl);
     try {
       await seedSql.begin(async (tx) => {
@@ -173,30 +193,35 @@ describe('Tenant Isolation — /restaurants', () => {
 
   // ── 1. Login de ambos os tenants ────────────────────────────────────────────
   it('1. Login tenant A retorna 200 + accessToken', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await request(httpServer)
       .post('/auth/login')
       .send({ email: IT_USER_A_EMAIL, password: PASSWORD })
       .expect(200);
 
-    expect(res.body.accessToken).toBeDefined();
-    expect(res.body.refreshToken).toBeDefined();
-    tokenA = res.body.accessToken as string;
-    refreshTokenA = res.body.refreshToken as string;
+    const loginBodyA = res.body as {
+      accessToken: string;
+      refreshToken: string;
+    };
+    expect(loginBodyA.accessToken).toBeDefined();
+    expect(loginBodyA.refreshToken).toBeDefined();
+    tokenA = loginBodyA.accessToken;
+    refreshTokenA = loginBodyA.refreshToken;
   });
 
   it('1b. Login tenant B retorna 200 + accessToken', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await request(httpServer)
       .post('/auth/login')
       .send({ email: IT_USER_B_EMAIL, password: PASSWORD })
       .expect(200);
 
-    expect(res.body.accessToken).toBeDefined();
-    tokenB = res.body.accessToken as string;
+    const loginBodyB = res.body as { accessToken: string };
+    expect(loginBodyB.accessToken).toBeDefined();
+    tokenB = loginBodyB.accessToken;
   });
 
   // ── 2. Tenant A vê apenas seus restaurantes ──────────────────────────────────
   it('2. GET /restaurants (token A) → inclui Restaurant A, NÃO inclui Restaurant B', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await request(httpServer)
       .get('/restaurants')
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
@@ -208,7 +233,7 @@ describe('Tenant Isolation — /restaurants', () => {
 
   // ── 3. Tenant B vê apenas seus restaurantes ──────────────────────────────────
   it('3. GET /restaurants (token B) → inclui Restaurant B, NÃO inclui Restaurant A', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await request(httpServer)
       .get('/restaurants')
       .set('Authorization', `Bearer ${tokenB}`)
       .expect(200);
@@ -220,7 +245,7 @@ describe('Tenant Isolation — /restaurants', () => {
 
   // ── 4. Cross-tenant por ID retorna 404 ───────────────────────────────────────
   it('4. GET /restaurants/{id_de_B} com token A → 404', async () => {
-    await request(app.getHttpServer())
+    await request(httpServer)
       .get(`/restaurants/${ids.restaurantBId}`)
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(404);
@@ -228,21 +253,25 @@ describe('Tenant Isolation — /restaurants', () => {
 
   // ── 5. Sem token → 401 ───────────────────────────────────────────────────────
   it('5. GET /restaurants sem token → 401', async () => {
-    await request(app.getHttpServer()).get('/restaurants').expect(401);
+    await request(httpServer).get('/restaurants').expect(401);
   });
 
   // ── 6. Refresh mantém isolamento ─────────────────────────────────────────────
   it('6. POST /auth/refresh (token A) → novo token → GET /restaurants ainda retorna só A', async () => {
-    const refreshRes = await request(app.getHttpServer())
+    const refreshRes = await request(httpServer)
       .post('/auth/refresh')
       .send({ refreshToken: refreshTokenA })
       .expect(200);
 
-    const newAccessToken = refreshRes.body.accessToken as string;
+    const refreshBody = refreshRes.body as {
+      accessToken: string;
+      user: { allowedRestaurantIds: string[] };
+    };
+    const newAccessToken = refreshBody.accessToken;
     expect(newAccessToken).toBeDefined();
-    expect(refreshRes.body.user.allowedRestaurantIds).toBeDefined();
+    expect(refreshBody.user.allowedRestaurantIds).toBeDefined();
 
-    const res = await request(app.getHttpServer())
+    const res = await request(httpServer)
       .get('/restaurants')
       .set('Authorization', `Bearer ${newAccessToken}`)
       .expect(200);

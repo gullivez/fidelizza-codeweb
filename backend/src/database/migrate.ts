@@ -5,7 +5,8 @@ import postgres from 'postgres';
 
 async function run() {
   const url = process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_MIGRATION_URL ou DATABASE_URL não configurado');
+  if (!url)
+    throw new Error('DATABASE_MIGRATION_URL ou DATABASE_URL não configurado');
 
   const sql = postgres(url);
 
@@ -52,7 +53,9 @@ async function run() {
             INSERT INTO _schema_migrations (filename) VALUES (${file})
             ON CONFLICT DO NOTHING
           `;
-          console.log(`⚠️  ${file}: objetos já existiam — marcada como aplicada`);
+          console.log(
+            `⚠️  ${file}: objetos já existiam — marcada como aplicada`,
+          );
         } else {
           throw err;
         }

@@ -12,7 +12,10 @@ export class TenantContextService {
 
   get(): TenantContext {
     const ctx = this.storage.getStore();
-    if (!ctx) throw new Error('TenantContext não disponível fora de um contexto autenticado');
+    if (!ctx)
+      throw new Error(
+        'TenantContext não disponível fora de um contexto autenticado',
+      );
     return ctx;
   }
 

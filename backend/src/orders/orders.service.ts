@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { TenantContextService } from '../tenant/tenant-context.service';
-import type { OrderListResponseDto, OrderResponseDto } from './dto/order-response.dto';
+import type {
+  OrderListResponseDto,
+  OrderResponseDto,
+} from './dto/order-response.dto';
 
 export interface UpsertOrderData {
   restaurantId: string;
@@ -27,7 +30,9 @@ export class OrdersService {
     private readonly tenantContext: TenantContextService,
   ) {}
 
-  async upsertOrder(data: UpsertOrderData): Promise<{ orderId: string; isNew: boolean }> {
+  async upsertOrder(
+    data: UpsertOrderData,
+  ): Promise<{ orderId: string; isNew: boolean }> {
     return this.db.runInTenantContext(data.accountId, async (sql) => {
       // Try inserting; if conflict (duplicate external_id) return existing id
       const insertRows = await sql`
@@ -81,7 +86,9 @@ export class OrdersService {
     const toFilter = to ? new Date(to) : null;
 
     const [rows, countRows] = await Promise.all([
-      this.db.runInTenantContext(accountId, (sql) => sql`
+      this.db.runInTenantContext(
+        accountId,
+        (sql) => sql`
         SELECT id, restaurant_id, customer_id, external_id, status,
                total_amount::float AS total_amount, ordered_at, created_at
         FROM restaurant_order
@@ -92,8 +99,11 @@ export class OrdersService {
           AND (${toFilter}::timestamptz IS NULL OR ordered_at <= ${toFilter})
         ORDER BY ordered_at DESC
         LIMIT ${limit} OFFSET ${offset}
-      `),
-      this.db.runInTenantContext(accountId, (sql) => sql`
+      `,
+      ),
+      this.db.runInTenantContext(
+        accountId,
+        (sql) => sql`
         SELECT COUNT(*)::int AS total
         FROM restaurant_order
         WHERE restaurant_id = ${restaurantId}
@@ -101,11 +111,12 @@ export class OrdersService {
           AND (${statusFilter}::text IS NULL OR status = ${statusFilter})
           AND (${fromFilter}::timestamptz IS NULL OR ordered_at >= ${fromFilter})
           AND (${toFilter}::timestamptz IS NULL OR ordered_at <= ${toFilter})
-      `),
+      `,
+      ),
     ]);
 
     return {
-      data: rows.map(this.mapOrderRow),
+      data: rows.map((r) => this.mapOrderRow(r)),
       total: countRows[0]['total'] as number,
       page,
       limit,
@@ -114,14 +125,14 @@ export class OrdersService {
 
   private mapOrderRow(row: Record<string, unknown>): OrderResponseDto {
     return {
-      id:           row['id'] as string,
+      id: row['id'] as string,
       restaurantId: row['restaurant_id'] as string,
-      customerId:   row['customer_id'] as string,
-      externalId:   row['external_id'] as string,
-      status:       row['status'] as string,
-      totalAmount:  row['total_amount'] as number,
-      orderedAt:    row['ordered_at'] as Date,
-      createdAt:    row['created_at'] as Date,
+      customerId: row['customer_id'] as string,
+      externalId: row['external_id'] as string,
+      status: row['status'] as string,
+      totalAmount: row['total_amount'] as number,
+      orderedAt: row['ordered_at'] as Date,
+      createdAt: row['created_at'] as Date,
     };
   }
 }

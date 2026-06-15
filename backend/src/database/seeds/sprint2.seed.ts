@@ -36,7 +36,10 @@ export async function seedSprint2(): Promise<Sprint2SeedResult> {
       WHERE r.slug = 'restaurant-a'
       LIMIT 1
     `;
-    if (!restaurant) throw new Error('restaurant-a não encontrado — rode o tenant-isolation seed primeiro');
+    if (!restaurant)
+      throw new Error(
+        'restaurant-a não encontrado — rode o tenant-isolation seed primeiro',
+      );
 
     const restaurantId = restaurant['id'] as string;
     const accountId = restaurant['account_id'] as string;
@@ -110,10 +113,10 @@ export async function seedSprint2(): Promise<Sprint2SeedResult> {
     await sql`
       INSERT INTO order_item (order_id, name, quantity, unit_price, total_price)
       VALUES
-        (${order1['id']}, 'X-Burguer', 2, 22.00, 44.00),
-        (${order1['id']}, 'Suco Laranja', 1, 14.90, 14.90),
-        (${order2['id']}, 'Combo Frango', 1, 32.50, 32.50),
-        (${order3['id']}, 'Pizza Mussarela M', 1, 45.00, 45.00)
+        (${order1['id'] as string}, 'X-Burguer', 2, 22.00, 44.00),
+        (${order1['id'] as string}, 'Suco Laranja', 1, 14.90, 14.90),
+        (${order2['id'] as string}, 'Combo Frango', 1, 32.50, 32.50),
+        (${order3['id'] as string}, 'Pizza Mussarela M', 1, 45.00, 45.00)
     `;
 
     // Atualizar agregados dos customers
@@ -140,7 +143,11 @@ export async function seedSprint2(): Promise<Sprint2SeedResult> {
       integrationId,
       customerAId,
       customerBId,
-      orderIds: [order1['id'] as string, order2['id'] as string, order3['id'] as string],
+      orderIds: [
+        order1['id'] as string,
+        order2['id'] as string,
+        order3['id'] as string,
+      ],
     };
   } catch (err) {
     await sql.end();

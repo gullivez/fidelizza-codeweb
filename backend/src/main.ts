@@ -19,9 +19,7 @@ async function bootstrap() {
   app.enableCors();
 
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, transform: true }),
-  );
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   if (configService.get('nodeEnv') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
@@ -31,9 +29,11 @@ async function bootstrap() {
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api', app, document);
-    app.getHttpAdapter().get('/api-json', (_req: unknown, res: { json: (d: unknown) => void }) =>
-      res.json(document),
-    );
+    app
+      .getHttpAdapter()
+      .get('/api-json', (_req: unknown, res: { json: (d: unknown) => void }) =>
+        res.json(document),
+      );
   }
 
   app.enableShutdownHooks();
@@ -41,4 +41,4 @@ async function bootstrap() {
   await app.listen(port);
 }
 
-bootstrap();
+void bootstrap();

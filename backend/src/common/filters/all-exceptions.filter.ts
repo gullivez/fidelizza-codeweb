@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 
 import { DomainError } from '../errors/domain-error';
 
@@ -14,8 +15,8 @@ const ERROR_BASE_URI = 'https://fidelizza.com/errors';
 export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
-    const request = ctx.getRequest();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
 
     if (exception instanceof DomainError) {
       return response.status(exception.status).json({
@@ -33,7 +34,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const detail =
         typeof res === 'string'
           ? res
-          : (res as Record<string, unknown>).message ?? exception.message;
+          : ((res as Record<string, unknown>).message ?? exception.message);
 
       return response.status(status).json({
         type: `${ERROR_BASE_URI}/http-error`,

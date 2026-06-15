@@ -4,14 +4,18 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import type { JwtPayload } from '../../auth/auth.types';
 
 @Injectable()
 export class RestaurantAccessGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
-    const user = request.user as JwtPayload;
-    const restaurantId = request.params?.restaurantId ?? request.params?.id;
+    const request = context
+      .switchToHttp()
+      .getRequest<Request & { user: JwtPayload }>();
+    const user = request.user;
+    const rawParam = request.params['restaurantId'] ?? request.params['id'];
+    const restaurantId = Array.isArray(rawParam) ? rawParam[0] : rawParam;
 
     if (!restaurantId) return true;
 

@@ -1,6 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class ListOrdersQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -17,7 +23,10 @@ export class ListOrdersQueryDto {
   @Min(1)
   limit: number = 20;
 
-  @ApiPropertyOptional({ description: 'Filtrar por status (pending, confirmed, delivered, cancelled…)' })
+  @ApiPropertyOptional({
+    description:
+      'Filtrar por status (pending, confirmed, delivered, cancelled…)',
+  })
   @IsOptional()
   @IsString()
   status?: string;

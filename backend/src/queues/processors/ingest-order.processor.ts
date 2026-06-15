@@ -45,11 +45,11 @@ export class IngestOrderProcessor extends WorkerHost {
       restaurantId,
       accountId,
       customerId,
-      externalId:  order.externalId,
-      status:      order.status,
+      externalId: order.externalId,
+      status: order.status,
       totalAmount: order.totalAmount,
-      orderedAt:   order.orderedAt,
-      items:       order.items,
+      orderedAt: order.orderedAt,
+      items: order.items,
     });
 
     if (!isNew) {
@@ -58,20 +58,31 @@ export class IngestOrderProcessor extends WorkerHost {
     }
 
     // 3. Update customer aggregates
-    await this.customersService.updateAggregates(customerId, restaurantId, accountId);
+    await this.customersService.updateAggregates(
+      customerId,
+      restaurantId,
+      accountId,
+    );
 
     // 4. Emit event for Sprint 3 (RFM segmentation)
-    this.eventEmitter.emit('order.created', { orderId, customerId, restaurantId, accountId });
+    this.eventEmitter.emit('order.created', {
+      orderId,
+      customerId,
+      restaurantId,
+      accountId,
+    });
 
     // 5. Update sync_log counters (use subquery to target the latest running log)
     const integrationId = job.data.integrationId;
-    const isNewCustomer = !(await this.db.getSql()`
+    const isNewCustomer = !(
+      await this.db.getSql()`
       SELECT 1 FROM restaurant_order
       WHERE customer_id   = ${customerId}
         AND restaurant_id = ${restaurantId}
         AND id != ${orderId}
       LIMIT 1
-    `).length;
+    `
+    ).length;
 
     await this.db.getSql()`
       UPDATE sync_log
@@ -86,6 +97,8 @@ export class IngestOrderProcessor extends WorkerHost {
       )
     `;
 
-    this.logger.debug(`Ingested order ${order.externalId} for restaurant ${restaurantId}`);
+    this.logger.debug(
+      `Ingested order ${order.externalId} for restaurant ${restaurantId}`,
+    );
   }
 }

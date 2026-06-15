@@ -41,13 +41,16 @@ export class SyncIntegrationProcessor extends WorkerHost {
     const syncLogId = syncLogRows[0]['id'] as string;
 
     try {
-      const rawIntegration = await this.integrationsService.findOneRaw(integrationId);
+      const rawIntegration =
+        await this.integrationsService.findOneRaw(integrationId);
       const credentials = this.integrationsService.decryptCredentials(
         rawIntegration['credentials_enc'] as string,
       );
 
       const orders = await this.adapter.fetchOrders(credentials, new Date());
-      this.logger.log(`Fetched ${orders.length} orders for integration ${integrationId}`);
+      this.logger.log(
+        `Fetched ${orders.length} orders for integration ${integrationId}`,
+      );
 
       for (const order of orders) {
         const jobId = `order:${integrationId}:${order.externalId}`;
@@ -55,7 +58,7 @@ export class SyncIntegrationProcessor extends WorkerHost {
           'ingest-order',
           {
             integrationId,
-            accountId:    rawIntegration['account_id'] as string,
+            accountId: rawIntegration['account_id'] as string,
             restaurantId: rawIntegration['restaurant_id'] as string,
             order,
           },
@@ -72,7 +75,9 @@ export class SyncIntegrationProcessor extends WorkerHost {
       this.logger.log(`Sync complete for integration ${integrationId}`);
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Sync failed for integration ${integrationId}: ${error}`);
+      this.logger.error(
+        `Sync failed for integration ${integrationId}: ${error}`,
+      );
       await this.db.getSql()`
         UPDATE sync_log
         SET status = 'error', finished_at = now(), error = ${error}

@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Inject,
   Param,
   Patch,
   Post,
@@ -45,7 +44,10 @@ export class IntegrationsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Retorna uma integração pelo ID' })
-  findOne(@Param('restaurantId') restaurantId: string, @Param('id') id: string) {
+  findOne(
+    @Param('restaurantId') restaurantId: string,
+    @Param('id') id: string,
+  ) {
     return this.integrationsService.findOne(restaurantId, id);
   }
 
@@ -69,7 +71,10 @@ export class IntegrationsController {
   @Post(':id/sync')
   @HttpCode(202)
   @ApiOperation({ summary: 'Dispara sincronização manual' })
-  async syncNow(@Param('restaurantId') restaurantId: string, @Param('id') id: string) {
+  async syncNow(
+    @Param('restaurantId') restaurantId: string,
+    @Param('id') id: string,
+  ) {
     // Validate integration belongs to restaurant before enqueuing
     await this.integrationsService.findOne(restaurantId, id);
 

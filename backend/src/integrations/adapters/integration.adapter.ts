@@ -28,7 +28,10 @@ export interface IntegrationCredentials {
 }
 
 export abstract class IntegrationAdapter {
-  abstract fetchOrders(credentials: IntegrationCredentials, date: Date): Promise<RawOrder[]>;
+  abstract fetchOrders(
+    credentials: IntegrationCredentials,
+    date: Date,
+  ): Promise<RawOrder[]>;
 }
 
 export const INTEGRATION_ADAPTER = Symbol('INTEGRATION_ADAPTER');

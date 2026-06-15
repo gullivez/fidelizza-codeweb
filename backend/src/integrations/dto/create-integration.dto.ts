@@ -19,12 +19,18 @@ export class CreateIntegrationDto {
   @IsNotEmpty()
   clientSecret: string;
 
-  @ApiPropertyOptional({ example: '03:00', description: 'Horário UTC da 1ª sincronização diária (HH:MM)' })
+  @ApiPropertyOptional({
+    example: '03:00',
+    description: 'Horário UTC da 1ª sincronização diária (HH:MM)',
+  })
   @IsOptional()
   @Matches(TIME_REGEX, { message: 'syncTime1 deve estar no formato HH:MM' })
   syncTime1?: string;
 
-  @ApiPropertyOptional({ example: '15:00', description: 'Horário UTC da 2ª sincronização diária (HH:MM), opcional' })
+  @ApiPropertyOptional({
+    example: '15:00',
+    description: 'Horário UTC da 2ª sincronização diária (HH:MM), opcional',
+  })
   @IsOptional()
   @Matches(TIME_REGEX, { message: 'syncTime2 deve estar no formato HH:MM' })
   syncTime2?: string;
