@@ -21,6 +21,8 @@ export const envSchema = z.object({
     .min(32, 'JWT_REFRESH_SECRET deve ter no mínimo 32 caracteres'),
 
   AES_SECRET: z.string().min(32, 'AES_SECRET deve ter no mínimo 32 caracteres'),
+
+  INTEGRATION_ADAPTER: z.enum(['anota_ai', 'mock']).default('mock'),
 });
 
 export type Env = z.infer<typeof envSchema>;

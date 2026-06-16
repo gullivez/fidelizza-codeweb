@@ -5,6 +5,7 @@ import { RedisModule } from '../redis/redis.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { CustomersModule } from '../customers/customers.module';
 import { OrdersModule } from '../orders/orders.module';
+import { PollingService } from '../integrations/polling.service';
 import { SyncIntegrationProcessor } from './processors/sync-integration.processor';
 import { IngestOrderProcessor } from './processors/ingest-order.processor';
 
@@ -17,6 +18,6 @@ import { IngestOrderProcessor } from './processors/ingest-order.processor';
     OrdersModule,
     BullModule.registerQueue({ name: 'integration.ingest' }),
   ],
-  providers: [SyncIntegrationProcessor, IngestOrderProcessor],
+  providers: [PollingService, SyncIntegrationProcessor, IngestOrderProcessor],
 })
 export class QueuesModule {}

@@ -18,4 +18,5 @@ export default () => ({
   },
 
   aesSecret: process.env.AES_SECRET,
+  integrationAdapter: process.env.INTEGRATION_ADAPTER ?? 'mock',
 });

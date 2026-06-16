@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import { DatabaseService } from '../database/database.service';
 import { TenantContextService } from '../tenant/tenant-context.service';
 import type { CreateIntegrationDto } from './dto/create-integration.dto';
@@ -22,6 +24,7 @@ export class IntegrationsService {
     private readonly db: DatabaseService,
     private readonly tenantContext: TenantContextService,
     private readonly configService: ConfigService,
+    @InjectQueue('integration.ingest') private readonly ingestQueue: Queue,
   ) {
     const secret = this.configService.get<string>('aesSecret')!;
     this.aesKey = Buffer.from(secret.slice(0, 32).padEnd(32, '0'));
@@ -144,7 +147,13 @@ export class IntegrationsService {
                   sync_time_1, sync_time_2, last_sync_at, last_error, created_at
       `,
       );
-      return this.mapRow(rows[0]);
+      const result = this.mapRow(rows[0]);
+      await this.ingestQueue.add('reschedule-polling', {
+        integrationId: result.id,
+        syncTime1: result.syncTime1,
+        syncTime2: result.syncTime2,
+      });
+      return result;
     } catch (err: unknown) {
       if ((err as { code?: string }).code === '23505') {
         throw new ConflictException(
@@ -179,7 +188,13 @@ export class IntegrationsService {
     `,
     );
     if (!rows.length) throw new NotFoundException('Integração não encontrada');
-    return this.mapRow(rows[0]);
+    const result = this.mapRow(rows[0]);
+    await this.ingestQueue.add('reschedule-polling', {
+      integrationId: id,
+      syncTime1: result.syncTime1,
+      syncTime2: result.syncTime2,
+    });
+    return result;
   }
 
   async remove(restaurantId: string, id: string): Promise<void> {
@@ -195,18 +210,25 @@ export class IntegrationsService {
     `,
     );
     if (!rows.length) throw new NotFoundException('Integração não encontrada');
+    await this.ingestQueue.add('cancel-polling', { integrationId: id });
   }
 
-  async markSyncSuccess(id: string): Promise<void> {
-    await this.db.getSql()`
+  async markSyncSuccess(id: string, accountId: string): Promise<void> {
+    await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
       UPDATE integration SET last_sync_at = now(), last_error = null WHERE id = ${id}
-    `;
+    `,
+    );
   }
 
-  async markSyncError(id: string, error: string): Promise<void> {
-    await this.db.getSql()`
+  async markSyncError(id: string, error: string, accountId: string): Promise<void> {
+    await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
       UPDATE integration SET last_error = ${error}, status = 'error' WHERE id = ${id}
-    `;
+    `,
+    );
   }
 
   // ── Map ───────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PlugZap, Search } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -8,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { SegmentChips } from "@/components/customers/SegmentChips";
 import { CustomersTable } from "@/components/customers/CustomersTable";
 import { Pagination } from "@/components/customers/Pagination";
-import { ContextualActionBar } from "@/components/customers/ContextualActionBar";
-import { filterCustomers, segmentCounts, type Segment } from "@/lib/mock-customers";
 import { useLayout } from "@/lib/layout-context";
+import { customersApi } from "@/lib/api/customers";
+import type { ApiCustomer } from "@/lib/api/customers";
+import type { Customer, Segment } from "@/lib/mock-customers";
 
 const PAGE_SIZE = 20;
 
@@ -36,34 +38,47 @@ export const Route = createFileRoute("/_app/clientes/")({
   component: ClientesPage,
 });
 
-type ViewState = "populated" | "loading" | "no-integration";
+function mapApiToCustomer(c: ApiCustomer): Customer {
+  return {
+    id: c.id,
+    name: c.name,
+    phone: c.phone,
+    // Sprint 3 adicionará RFM — por enquanto todos os clientes são exibidos como 'novos'
+    segment: "novos" as Segment & "novos",
+    lastOrderAt: c.lastOrderAt ?? c.createdAt,
+    orders: c.totalOrders,
+    totalSpent: c.totalSpent,
+  };
+}
 
 function ClientesPage() {
   const { segmento, q, page } = Route.useSearch() as ClientesSearch;
-  const navigate = useNavigate({ from: "/clientes" });
+  const navigate = useNavigate({ from: "/clientes/" });
   const { activeRestaurant } = useLayout();
-  const [viewState] = useState<ViewState>("populated");
+  const rid = activeRestaurant?.id ?? "";
+
   const [searchInput, setSearchInput] = useState(q);
 
-  // sync local input when URL changes externally
-  useEffect(() => {
-    setSearchInput(q);
-  }, [q]);
+  useEffect(() => { setSearchInput(q); }, [q]);
 
-  // debounce search → URL
   useEffect(() => {
     if (searchInput === q) return;
     const t = setTimeout(() => {
-      navigate({ search: (prev: ClientesSearch) => ({ ...prev, q: searchInput, page: 1 }) });
+      void navigate({ search: (prev: ClientesSearch) => ({ ...prev, q: searchInput, page: 1 }) });
     }, 300);
     return () => clearTimeout(t);
   }, [searchInput, q, navigate]);
 
-  const filtered = useMemo(() => filterCustomers(segmento, q), [segmento, q]);
-  const total = filtered.length;
+  const { data, isLoading } = useQuery({
+    queryKey: ["customers", rid, { page, q }],
+    queryFn: () => customersApi.list(rid, { page, limit: PAGE_SIZE, search: q || undefined }),
+    enabled: !!rid,
+  });
+
+  const customers: Customer[] = (data?.data ?? []).map(mapApiToCustomer);
+  const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pageData = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const searchSlot = (
     <div className="relative">
@@ -85,38 +100,41 @@ function ClientesPage() {
         action={searchSlot}
       />
 
-      {viewState === "no-integration" ? (
+      {!rid ? (
         <EmptyState
           icon={PlugZap}
-          title="Conecte uma fonte de dados"
-          description="Conecte seu sistema de delivery para importar pedidos e ver seus clientes aqui."
-          action={
-            <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <a href="/integracoes">Ir para Integrações</a>
-            </Button>
-          }
+          title="Selecione um restaurante"
+          description="Escolha um restaurante no menu para ver seus clientes."
         />
       ) : (
         <>
           <SegmentChips active={segmento} />
 
-          <CustomersTable data={pageData} loading={viewState === "loading"} />
+          <CustomersTable data={customers} loading={isLoading} />
 
-          {total > 0 ? (
+          {total > 0 && (
             <Pagination
               page={safePage}
               pageSize={PAGE_SIZE}
               total={total}
               onChange={(p) =>
-                navigate({ search: (prev: ClientesSearch) => ({ ...prev, page: p }) })
+                void navigate({ search: (prev: ClientesSearch) => ({ ...prev, page: p }) })
               }
             />
-          ) : null}
+          )}
 
-          <ContextualActionBar
-            segment={segmento}
-            count={segmentCounts[segmento]}
-          />
+          {!isLoading && total === 0 && (
+            <EmptyState
+              icon={PlugZap}
+              title="Nenhum cliente ainda"
+              description="Conecte e sincronize uma integração para importar seus clientes."
+              action={
+                <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <a href="/integracoes">Ir para Integrações</a>
+                </Button>
+              }
+            />
+          )}
         </>
       )}
     </>

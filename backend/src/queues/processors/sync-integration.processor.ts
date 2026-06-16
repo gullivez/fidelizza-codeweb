@@ -6,11 +6,14 @@ import type { Queue } from 'bullmq';
 import { IntegrationsService } from '../../integrations/integrations.service';
 import { INTEGRATION_ADAPTER } from '../../integrations/adapters/integration.adapter';
 import type { IntegrationAdapter } from '../../integrations/adapters/integration.adapter';
+import { PollingService } from '../../integrations/polling.service';
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
 
 interface SyncJobData {
   integrationId: string;
+  syncTime1?: string;
+  syncTime2?: string | null;
 }
 
 @Processor('integration.ingest')
@@ -20,6 +23,7 @@ export class SyncIntegrationProcessor extends WorkerHost {
   constructor(
     private readonly integrationsService: IntegrationsService,
     @Inject(INTEGRATION_ADAPTER) private readonly adapter: IntegrationAdapter,
+    private readonly pollingService: PollingService,
     private readonly db: DatabaseService,
     private readonly redis: RedisService,
     @InjectQueue('integration.ingest') private readonly ingestQueue: Queue,
@@ -28,21 +32,38 @@ export class SyncIntegrationProcessor extends WorkerHost {
   }
 
   async process(job: Job<SyncJobData>): Promise<void> {
+    if (job.name === 'reschedule-polling') {
+      this.pollingService.reschedule(
+        job.data.integrationId as string,
+        job.data.syncTime1 as string,
+        (job.data.syncTime2 as string | null) ?? null,
+      );
+      return;
+    }
+    if (job.name === 'cancel-polling') {
+      this.pollingService.cancelSchedule(job.data.integrationId as string);
+      return;
+    }
     if (job.name !== 'sync') return;
 
     const { integrationId } = job.data;
     this.logger.log(`Starting sync for integration ${integrationId}`);
+
+    let syncLogId: string | null = null;
+    let accountId: string | null = null;
 
     const syncLogRows = await this.db.getSql()`
       INSERT INTO sync_log (integration_id, status)
       VALUES (${integrationId}, 'running')
       RETURNING id
     `;
-    const syncLogId = syncLogRows[0]['id'] as string;
+    syncLogId = syncLogRows[0]['id'] as string;
 
     try {
       const rawIntegration =
         await this.integrationsService.findOneRaw(integrationId);
+      accountId = rawIntegration['account_id'] as string;
+
       const credentials = this.integrationsService.decryptCredentials(
         rawIntegration['credentials_enc'] as string,
       );
@@ -58,7 +79,7 @@ export class SyncIntegrationProcessor extends WorkerHost {
           'ingest-order',
           {
             integrationId,
-            accountId: rawIntegration['account_id'] as string,
+            accountId,
             restaurantId: rawIntegration['restaurant_id'] as string,
             order,
           },
@@ -71,22 +92,25 @@ export class SyncIntegrationProcessor extends WorkerHost {
         SET status = 'success', finished_at = now(), orders_fetched = ${orders.length}
         WHERE id = ${syncLogId}
       `;
-      await this.integrationsService.markSyncSuccess(integrationId);
+      await this.integrationsService.markSyncSuccess(integrationId, accountId);
       this.logger.log(`Sync complete for integration ${integrationId}`);
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
       this.logger.error(
         `Sync failed for integration ${integrationId}: ${error}`,
       );
-      await this.db.getSql()`
-        UPDATE sync_log
-        SET status = 'error', finished_at = now(), error = ${error}
-        WHERE id = ${syncLogId}
-      `;
-      await this.integrationsService.markSyncError(integrationId, error);
+      if (syncLogId) {
+        await this.db.getSql()`
+          UPDATE sync_log
+          SET status = 'error', finished_at = now(), error = ${error}
+          WHERE id = ${syncLogId}
+        `;
+      }
+      if (accountId) {
+        await this.integrationsService.markSyncError(integrationId, error, accountId);
+      }
       throw err;
     } finally {
-      // Release the scheduled-sync lock so next scheduled run can proceed
       await this.redis.getClient().del(`sync:lock:${integrationId}`);
     }
   }
