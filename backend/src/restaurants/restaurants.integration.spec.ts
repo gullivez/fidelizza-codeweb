@@ -243,17 +243,41 @@ describe('Tenant Isolation — /restaurants', () => {
     expect(list).not.toContain(ids.restaurantAId);
   });
 
-  // ── 4. Cross-tenant por ID retorna 404 ───────────────────────────────────────
-  it('4. GET /restaurants/{id_de_B} com token A → 404', async () => {
+  // ── 4. Cross-tenant por ID retorna 403 ───────────────────────────────────────
+  // O RestaurantAccessGuard bloqueia antes do controller ser invocado,
+  // por isso 403 é mais correto que 404 (não vaza existência do recurso).
+  it('4. GET /restaurants/{id_de_B} com token A → 403', async () => {
     await request(httpServer)
       .get(`/restaurants/${ids.restaurantBId}`)
       .set('Authorization', `Bearer ${tokenA}`)
-      .expect(404);
+      .expect(403);
   });
 
   // ── 5. Sem token → 401 ───────────────────────────────────────────────────────
   it('5. GET /restaurants sem token → 401', async () => {
     await request(httpServer).get('/restaurants').expect(401);
+  });
+
+  // ── 5b. Cross-tenant em /segments → 403 ────────────────────────────────────
+  it('5b. GET /restaurants/{ridA}/segments com token B → 403', async () => {
+    await request(httpServer)
+      .get(`/restaurants/${ids.restaurantAId}/segments`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(403);
+  });
+
+  it('5c. POST /restaurants/{ridA}/segments/recalculate com token B → 403', async () => {
+    await request(httpServer)
+      .post(`/restaurants/${ids.restaurantAId}/segments/recalculate`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(403);
+  });
+
+  it('5d. GET /restaurants/{ridA}/customers com token B → 403', async () => {
+    await request(httpServer)
+      .get(`/restaurants/${ids.restaurantAId}/customers`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(403);
   });
 
   // ── 6. Refresh mantém isolamento ─────────────────────────────────────────────

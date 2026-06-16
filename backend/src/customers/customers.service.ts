@@ -87,70 +87,59 @@ export class CustomersService {
     page: number,
     limit: number,
     search?: string,
+    segment?: string,
   ): Promise<CustomerListResponseDto> {
     const { accountId } = this.tenantContext.get();
     const offset = (page - 1) * limit;
+    const db = this.db.getSql();
 
-    if (search) {
-      const pattern = `%${search}%`;
-      const [rows, countRows] = await Promise.all([
-        this.db.runInTenantContext(
-          accountId,
-          (sql) => sql`
-          SELECT id, restaurant_id, phone, name, total_orders,
-                 total_spent::float AS total_spent,
-                 avg_ticket::float  AS avg_ticket,
-                 last_order_at, created_at
-          FROM customer
-          WHERE restaurant_id = ${restaurantId}
-            AND account_id    = ${accountId}
-            AND (name ILIKE ${pattern} OR phone ILIKE ${pattern})
-          ORDER BY last_order_at DESC NULLS LAST
-          LIMIT ${limit} OFFSET ${offset}
-        `,
-        ),
-        this.db.runInTenantContext(
-          accountId,
-          (sql) => sql`
-          SELECT COUNT(*)::int AS total
-          FROM customer
-          WHERE restaurant_id = ${restaurantId}
-            AND account_id    = ${accountId}
-            AND (name ILIKE ${pattern} OR phone ILIKE ${pattern})
-        `,
-        ),
-      ]);
-      return {
-        data: rows.map((r) => this.mapCustomerRow(r)),
-        total: countRows[0]['total'] as number,
-        page,
-        limit,
-      };
-    }
+    // Build optional filter fragments — postgres.js Fragment objects are
+    // connection-agnostic and can be safely embedded in transaction queries.
+    const searchWhere = search
+      ? db`AND (c.name ILIKE ${'%' + search + '%'} OR c.phone ILIKE ${'%' + search + '%'})`
+      : db``;
+    const segmentWhere = segment
+      ? db`AND cs.segment_name = ${segment}`
+      : db``;
 
     const [rows, countRows] = await Promise.all([
       this.db.runInTenantContext(
         accountId,
         (sql) => sql`
-        SELECT id, restaurant_id, phone, name, total_orders,
-               total_spent::float AS total_spent,
-               avg_ticket::float  AS avg_ticket,
-               last_order_at, created_at
-        FROM customer
-        WHERE restaurant_id = ${restaurantId}
-          AND account_id    = ${accountId}
-        ORDER BY last_order_at DESC NULLS LAST
-        LIMIT ${limit} OFFSET ${offset}
-      `,
+          SELECT c.id, c.restaurant_id, c.phone, c.name, c.total_orders,
+                 c.total_spent::float AS total_spent,
+                 c.avg_ticket::float  AS avg_ticket,
+                 c.last_order_at, c.created_at,
+                 cs.segment_name
+          FROM customer c
+          LEFT JOIN customer_segment cs
+            ON cs.customer_id   = c.id
+           AND cs.is_current    = true
+           AND cs.restaurant_id = ${restaurantId}
+           AND cs.account_id    = ${accountId}
+          WHERE c.restaurant_id = ${restaurantId}
+            AND c.account_id    = ${accountId}
+            ${searchWhere}
+            ${segmentWhere}
+          ORDER BY c.last_order_at DESC NULLS LAST
+          LIMIT ${limit} OFFSET ${offset}
+        `,
       ),
       this.db.runInTenantContext(
         accountId,
         (sql) => sql`
-        SELECT COUNT(*)::int AS total
-        FROM customer
-        WHERE restaurant_id = ${restaurantId}
-          AND account_id    = ${accountId}
-      `,
+          SELECT COUNT(*)::int AS total
+          FROM customer c
+          LEFT JOIN customer_segment cs
+            ON cs.customer_id   = c.id
+           AND cs.is_current    = true
+           AND cs.restaurant_id = ${restaurantId}
+           AND cs.account_id    = ${accountId}
+          WHERE c.restaurant_id = ${restaurantId}
+            AND c.account_id    = ${accountId}
+            ${searchWhere}
+            ${segmentWhere}
+        `,
       ),
     ]);
 
@@ -172,14 +161,20 @@ export class CustomersService {
       this.db.runInTenantContext(
         accountId,
         (sql) => sql`
-        SELECT id, restaurant_id, phone, name, total_orders,
-               total_spent::float AS total_spent,
-               avg_ticket::float  AS avg_ticket,
-               last_order_at, created_at
-        FROM customer
-        WHERE id            = ${customerId}
-          AND restaurant_id = ${restaurantId}
-          AND account_id    = ${accountId}
+        SELECT c.id, c.restaurant_id, c.phone, c.name, c.total_orders,
+               c.total_spent::float AS total_spent,
+               c.avg_ticket::float  AS avg_ticket,
+               c.last_order_at, c.created_at,
+               cs.segment_name
+        FROM customer c
+        LEFT JOIN customer_segment cs
+          ON cs.customer_id   = c.id
+         AND cs.is_current    = true
+         AND cs.restaurant_id = ${restaurantId}
+         AND cs.account_id    = ${accountId}
+        WHERE c.id            = ${customerId}
+          AND c.restaurant_id = ${restaurantId}
+          AND c.account_id    = ${accountId}
       `,
       ),
       this.db.runInTenantContext(
@@ -227,6 +222,7 @@ export class CustomersService {
       avgTicket: row['avg_ticket'] as number,
       lastOrderAt: (row['last_order_at'] as Date | null) ?? null,
       createdAt: row['created_at'] as Date,
+      segmentName: (row['segment_name'] as string | null) ?? null,
     };
   }
 }

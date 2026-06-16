@@ -19,11 +19,10 @@ export class RestaurantAccessGuard implements CanActivate {
 
     if (!restaurantId) return true;
 
-    if (
-      user.role !== 'owner' &&
-      user.role !== 'admin' &&
-      !user.allowedRestaurantIds.includes(restaurantId)
-    ) {
+    // allowedRestaurantIds is scoped to the user's own account (see AuthService.resolveAllowedRestaurants).
+    // Checking it for ALL roles enforces tenant isolation even for owner/admin —
+    // a restaurantId from another tenant will never appear in their list.
+    if (!user.allowedRestaurantIds.includes(restaurantId)) {
       throw new ForbiddenException('Acesso negado a este restaurante');
     }
 

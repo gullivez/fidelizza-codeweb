@@ -1,6 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+
+const VALID_SEGMENTS = ['champions', 'new', 'at_risk', 'inactive'] as const;
 
 export class ListCustomersQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -21,4 +23,12 @@ export class ListCustomersQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtro por segmento RFM',
+    enum: VALID_SEGMENTS,
+  })
+  @IsOptional()
+  @IsIn(VALID_SEGMENTS)
+  segment?: (typeof VALID_SEGMENTS)[number];
 }

@@ -22,6 +22,7 @@ export class CustomersController {
       query.page,
       query.limit,
       query.search,
+      query.segment,
     );
   }
 

@@ -18,6 +18,8 @@ export class CustomerResponseDto {
   @ApiProperty() avgTicket: number;
   @ApiPropertyOptional({ nullable: true }) lastOrderAt: Date | null;
   @ApiProperty() createdAt: Date;
+  @ApiPropertyOptional({ nullable: true, example: 'champions' })
+  segmentName: string | null;
 }
 
 export class CustomerDetailResponseDto extends CustomerResponseDto {

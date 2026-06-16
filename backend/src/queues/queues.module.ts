@@ -8,6 +8,10 @@ import { OrdersModule } from '../orders/orders.module';
 import { PollingService } from '../integrations/polling.service';
 import { SyncIntegrationProcessor } from './processors/sync-integration.processor';
 import { IngestOrderProcessor } from './processors/ingest-order.processor';
+import { RfmEngineService } from '../segments/rfm-engine.service';
+import { SegmentationProcessor } from '../segments/segmentation.processor';
+import { CustomerUpdatedListener } from '../segments/customer-updated.listener';
+import { DailyRfmScheduler } from '../segments/daily-rfm.scheduler';
 
 @Module({
   imports: [
@@ -17,7 +21,16 @@ import { IngestOrderProcessor } from './processors/ingest-order.processor';
     CustomersModule,
     OrdersModule,
     BullModule.registerQueue({ name: 'integration.ingest' }),
+    BullModule.registerQueue({ name: 'segmentation.recalculate' }),
   ],
-  providers: [PollingService, SyncIntegrationProcessor, IngestOrderProcessor],
+  providers: [
+    PollingService,
+    SyncIntegrationProcessor,
+    IngestOrderProcessor,
+    RfmEngineService,
+    SegmentationProcessor,
+    CustomerUpdatedListener,
+    DailyRfmScheduler,
+  ],
 })
 export class QueuesModule {}
