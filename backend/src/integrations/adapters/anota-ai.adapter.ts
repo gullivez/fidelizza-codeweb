@@ -116,7 +116,7 @@ export class AnotaAiAdapter extends IntegrationAdapter {
     const info = body.info;
     const customer = (info['customer'] ?? null) as Record<string, unknown> | null;
 
-    const rawPhone = String(customer?.['phone'] ?? '').replace(/\D/g, '');
+    const rawPhone = String((customer?.['phone'] as string) ?? '').replace(/\D/g, '');
 
     // Phone inválido: vazio, só zeros, ou menos de 10 dígitos
     const isInvalidPhone = !rawPhone || rawPhone.length < 10 || /^0+$/.test(rawPhone);
@@ -132,20 +132,20 @@ export class AnotaAiAdapter extends IntegrationAdapter {
     const items = ((info['items'] as Record<string, unknown>[] | null) ?? []).filter(Boolean);
 
     return {
-      externalId: String(info['_id'] ?? orderId),
+      externalId: String((info['_id'] as string) ?? orderId),
       orderedAt: info['createdAt'] ? new Date(info['createdAt'] as string) : new Date(),
       status: STATUS_MAP[Number(info['check'] ?? -1)] ?? 'pending',
       totalAmount: Number(info['total'] ?? 0),
       customer: {
-        externalId: String(customer?.['id'] ?? ''),
-        name: String(customer?.['name'] ?? 'Cliente'),
+        externalId: String((customer?.['id'] as string) ?? ''),
+        name: String((customer?.['name'] as string) ?? 'Cliente'),
         phone,
       },
       items: items.map(
         (item) =>
           ({
-            externalId: String(item['externalId'] ?? ''),
-            name: String(item['name'] ?? ''),
+            externalId: String((item['externalId'] as string) ?? ''),
+            name: String((item['name'] as string) ?? ''),
             quantity: Number(item['quantity'] ?? 1),
             unitPrice: Number(item['price'] ?? 0),
             totalPrice: Number(item['total'] ?? 0),
