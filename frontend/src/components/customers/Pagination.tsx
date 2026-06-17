@@ -8,6 +8,22 @@ type Props = {
   onChange: (page: number) => void;
 };
 
+// Returns the page slots to render: numbers or the string "…" for gaps.
+function pageSlots(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const delta = 2; // pages on each side of current
+  const left = Math.max(2, current - delta);
+  const right = Math.min(total - 1, current + delta);
+
+  const slots: (number | "…")[] = [1];
+  if (left > 2) slots.push("…");
+  for (let p = left; p <= right; p++) slots.push(p);
+  if (right < total - 1) slots.push("…");
+  slots.push(total);
+  return slots;
+}
+
 export function Pagination({ page, pageSize, total, onChange }: Props) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -32,24 +48,31 @@ export function Pagination({ page, pageSize, total, onChange }: Props) {
         >
           <ChevronLeft className="h-3.5 w-3.5" /> Anterior
         </button>
-        {Array.from({ length: totalPages }).map((_, i) => {
-          const p = i + 1;
-          const active = p === page;
-          return (
+
+        {pageSlots(page, totalPages).map((slot, i) =>
+          slot === "…" ? (
+            <span
+              key={`ellipsis-${i}`}
+              className="h-7 min-w-7 px-1 flex items-center justify-center text-muted-foreground"
+            >
+              …
+            </span>
+          ) : (
             <button
-              key={p}
-              onClick={() => go(p)}
+              key={slot}
+              onClick={() => go(slot)}
               className={cn(
                 "h-7 min-w-7 px-2 rounded border text-xs tabular-nums",
-                active
+                slot === page
                   ? "border-foreground bg-foreground text-background"
                   : "border-border text-foreground hover:bg-zinc-50",
               )}
             >
-              {p}
+              {slot}
             </button>
-          );
-        })}
+          ),
+        )}
+
         <button
           onClick={() => go(page + 1)}
           disabled={page === totalPages}

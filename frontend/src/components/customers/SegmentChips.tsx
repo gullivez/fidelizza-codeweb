@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
-import { segmentCounts, segmentLabels, type Segment } from "@/lib/mock-customers";
+import { segmentLabels, type Segment } from "@/lib/mock-customers";
 
 const segments: { key: Segment; label: string; chip: string }[] = [
   { key: "todos", label: "Todos", chip: "bg-zinc-100 text-zinc-700" },
@@ -14,7 +14,12 @@ function formatCount(n: number) {
   return n.toLocaleString("pt-BR");
 }
 
-export function SegmentChips({ active }: { active: Segment }) {
+interface SegmentChipsProps {
+  active: Segment;
+  counts: Record<Segment, number>;
+}
+
+export function SegmentChips({ active, counts }: SegmentChipsProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border pb-4 mb-4">
       {segments.map((s) => {
@@ -34,11 +39,11 @@ export function SegmentChips({ active }: { active: Segment }) {
             <span className="font-medium">{s.label}</span>
             <span
               className={cn(
-                "inline-flex items-center justify-center min-w-[28px] h-5 px-1.5 rounded-full text-[11px] font-semibold tabular-nums",
+                "inline-flex items-center justify-center min-w-7 h-5 px-1.5 rounded-full text-[11px] font-semibold tabular-nums",
                 s.chip,
               )}
             >
-              {formatCount(segmentCounts[s.key])}
+              {formatCount(counts[s.key])}
             </span>
           </Link>
         );

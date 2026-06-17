@@ -1,5 +1,30 @@
 export type Segment = "todos" | "campeoes" | "novos" | "em-risco" | "inativos";
 
+const API_TO_SEGMENT: Record<string, Exclude<Segment, "todos">> = {
+  champions: "campeoes",
+  new: "novos",
+  at_risk: "em-risco",
+  inactive: "inativos",
+};
+
+export function apiSegmentToLocal(
+  s: string | null,
+): Exclude<Segment, "todos"> {
+  return (s && API_TO_SEGMENT[s]) ? API_TO_SEGMENT[s] : "novos";
+}
+
+const LOCAL_TO_API: Record<Exclude<Segment, "todos">, string> = {
+  campeoes: "champions",
+  novos: "new",
+  "em-risco": "at_risk",
+  inativos: "inactive",
+};
+
+export function localSegmentToApi(s: Segment): string | undefined {
+  if (s === "todos") return undefined;
+  return LOCAL_TO_API[s];
+}
+
 export type Customer = {
   id: string;
   name: string;

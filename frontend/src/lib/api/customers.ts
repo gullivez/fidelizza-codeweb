@@ -10,6 +10,7 @@ export interface ApiCustomer {
   avgTicket: number;
   lastOrderAt: string | null;
   createdAt: string;
+  segmentName: string | null;
 }
 
 export interface ApiOrderSummary {
@@ -34,12 +35,13 @@ export interface CustomerListResponse {
 export const customersApi = {
   list: (
     restaurantId: string,
-    params: { page?: number; limit?: number; search?: string } = {},
+    params: { page?: number; limit?: number; search?: string; segment?: string } = {},
   ) => {
     const q = new URLSearchParams();
     if (params.page) q.set("page", String(params.page));
     if (params.limit) q.set("limit", String(params.limit));
     if (params.search) q.set("search", params.search);
+    if (params.segment) q.set("segment", params.segment);
     const qs = q.toString() ? `?${q.toString()}` : "";
     return apiRequest<CustomerListResponse>(`/restaurants/${restaurantId}/customers${qs}`);
   },

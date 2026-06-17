@@ -23,6 +23,12 @@ export const envSchema = z.object({
   AES_SECRET: z.string().min(32, 'AES_SECRET deve ter no mínimo 32 caracteres'),
 
   INTEGRATION_ADAPTER: z.enum(['anota_ai', 'mock']).default('mock'),
+
+  WHATSAPP_PROVIDER: z.enum(['twilio', 'mock']).default('mock'),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_WHATSAPP_FROM: z.string().optional(),
+  TWILIO_STATUS_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

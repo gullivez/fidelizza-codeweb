@@ -19,4 +19,14 @@ export default () => ({
 
   aesSecret: process.env.AES_SECRET,
   integrationAdapter: process.env.INTEGRATION_ADAPTER ?? 'mock',
+
+  whatsapp: {
+    provider: process.env.WHATSAPP_PROVIDER ?? 'mock',
+    twilio: {
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      from: process.env.TWILIO_WHATSAPP_FROM,
+      statusWebhookSecret: process.env.TWILIO_STATUS_WEBHOOK_SECRET,
+    },
+  },
 });
