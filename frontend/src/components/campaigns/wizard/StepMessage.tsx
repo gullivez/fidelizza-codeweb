@@ -1,120 +1,199 @@
-import { useRef } from "react";
-import { Textarea } from "@/components/ui/textarea";
-import { TEMPLATES } from "@/lib/campaign-wizard";
+import { Info, Plus, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { WhatsAppPreview } from "./WhatsAppPreview";
-import { cn } from "@/lib/utils";
+import type { CampaignPreviewResponse } from "@/lib/api/campaigns";
 
 type Props = {
-  mensagem: string;
-  onChange: (v: string) => void;
+  templateName: string;
+  onTemplateNameChange: (v: string) => void;
+  contentSid: string;
+  onContentSidChange: (v: string) => void;
+  templateParams: Record<string, string>;
+  onTemplateParamsChange: (params: Record<string, string>) => void;
+  attributionWindowDays: number;
+  onAttributionWindowDaysChange: (n: number) => void;
+  campaignId: string | null;
+  onPreview: () => void;
+  previewResult: CampaignPreviewResponse | null;
+  previewNoEligible: boolean;
+  isPreviewing: boolean;
 };
 
-const MAX_CHARS = 1000;
-const VARIABLES = ["{nome}", "{restaurante}"];
+export function StepMessage({
+  templateName,
+  onTemplateNameChange,
+  contentSid,
+  onContentSidChange,
+  templateParams,
+  onTemplateParamsChange,
+  attributionWindowDays,
+  onAttributionWindowDaysChange,
+  campaignId,
+  onPreview,
+  previewResult,
+  previewNoEligible,
+  isPreviewing,
+}: Props) {
+  const rows = Object.entries(templateParams);
 
-export function StepMessage({ mensagem, onChange }: Props) {
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const updateRow = (index: number, key: string, value: string) => {
+    const next = [...rows];
+    next[index] = [key, value];
+    onTemplateParamsChange(Object.fromEntries(next));
+  };
 
-  const insertAtCursor = (token: string) => {
-    const el = ref.current;
-    if (!el) {
-      onChange(mensagem + token);
-      return;
-    }
-    const start = el.selectionStart ?? mensagem.length;
-    const end = el.selectionEnd ?? mensagem.length;
-    const next = mensagem.slice(0, start) + token + mensagem.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      const pos = start + token.length;
-      el.setSelectionRange(pos, pos);
-    });
+  const addRow = () => {
+    onTemplateParamsChange(Object.fromEntries([...rows, [`chave${rows.length + 1}`, ""]]));
+  };
+
+  const removeRow = (index: number) => {
+    onTemplateParamsChange(Object.fromEntries(rows.filter((_, i) => i !== index)));
   };
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">
-          Escreva sua mensagem
-        </h2>
+        <h2 className="text-lg font-semibold text-foreground">Configure o template do WhatsApp</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Use um template ou personalize do zero.
+          Use um Content SID já aprovado no Twilio.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Editor */}
         <div className="flex flex-col gap-4">
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-              Templates sugeridos
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {TEMPLATES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => onChange(t.body)}
-                  className="inline-flex items-center rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
-                >
-                  {t.nome}
-                </button>
-              ))}
-            </div>
+          <div className="max-w-md">
+            <Label htmlFor="template-name" className="text-sm">
+              Nome do template
+            </Label>
+            <Input
+              id="template-name"
+              value={templateName}
+              onChange={(e) => onTemplateNameChange(e.target.value)}
+              className="mt-1.5 h-9"
+            />
+          </div>
+
+          <div className="max-w-md">
+            <Label htmlFor="content-sid" className="text-sm">
+              Content SID
+            </Label>
+            <Input
+              id="content-sid"
+              value={contentSid}
+              onChange={(e) => onContentSidChange(e.target.value)}
+              placeholder="HXabc123..."
+              className="mt-1.5 h-9 font-mono"
+            />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Variáveis
+                Parâmetros do template
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={addRow}>
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar
+              </Button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {rows.map(([key, value], index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    value={key}
+                    onChange={(e) => updateRow(index, e.target.value, value)}
+                    placeholder="1"
+                    className="h-9 w-24 font-mono"
+                  />
+                  <Input
+                    value={value}
+                    onChange={(e) => updateRow(index, key, e.target.value)}
+                    placeholder="valor"
+                    className="h-9 flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeRow(index)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+              {rows.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhum parâmetro adicionado.</p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex items-end gap-3 max-w-md">
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="janela" className="text-sm">
+                  Janela de atribuição
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground">
+                        <Info className="h-3.5 w-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      Pedidos feitos em até {attributionWindowDays} dias após a mensagem contam como
+                      conversão desta campanha.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="mt-1.5 flex items-center gap-2">
+                <Input
+                  id="janela"
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={attributionWindowDays}
+                  onChange={(e) =>
+                    onAttributionWindowDaysChange(Math.max(1, Number(e.target.value) || 1))
+                  }
+                  className="w-24 h-9"
+                />
+                <span className="text-sm text-muted-foreground">dias</span>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {VARIABLES.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => insertAtCursor(v)}
-                  className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-mono text-indigo-700 hover:bg-indigo-100"
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
           </div>
 
-          <div className="relative">
-            <Textarea
-              ref={ref}
-              value={mensagem}
-              onChange={(e) => onChange(e.target.value.slice(0, MAX_CHARS))}
-              rows={8}
-              placeholder="Oi {nome}! ..."
-              className="resize-none pb-7"
-            />
-            <div
-              className={cn(
-                "absolute bottom-2 right-3 text-xs tabular-nums",
-                mensagem.length > MAX_CHARS * 0.9
-                  ? "text-amber-600"
-                  : "text-muted-foreground",
-              )}
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!campaignId || isPreviewing}
+              onClick={onPreview}
             >
-              {mensagem.length}/{MAX_CHARS}
-            </div>
-          </div>
-
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            💡 Personalize com{" "}
-            <span className="font-mono">{"{nome}"}</span> e evite enviar só links —
-            protege seu número.
+              {isPreviewing ? "Pré-visualizando..." : "Pré-visualizar"}
+            </Button>
+            {!campaignId ? (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Clique em "Continuar" para criar a campanha e habilitar a pré-visualização.
+              </p>
+            ) : null}
           </div>
         </div>
 
         {/* Preview */}
         <div className="lg:sticky lg:top-6 lg:self-start">
-          <WhatsAppPreview text={mensagem} />
+          {previewNoEligible ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              Nenhum cliente com WhatsApp habilitado foi encontrado neste segmento.
+            </div>
+          ) : (
+            <WhatsAppPreview renderedMessage={previewResult?.renderedMessage ?? ""} />
+          )}
         </div>
       </div>
     </div>

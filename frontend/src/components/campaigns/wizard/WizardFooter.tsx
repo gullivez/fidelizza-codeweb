@@ -1,15 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
-import type { WizardStep } from "@/lib/campaign-wizard";
+import type { WizardStep } from "./Stepper";
 
 type Props = {
   step: WizardStep;
   canContinue: boolean;
+  loading?: boolean;
   onBack: () => void;
   onNext: () => void;
 };
 
-export function WizardFooter({ step, canContinue, onBack, onNext }: Props) {
+export function WizardFooter({ step, canContinue, loading, onBack, onNext }: Props) {
   const isLast = step === 3;
   return (
     <div className="sticky bottom-0 mt-8 -mx-6 px-6 py-3 border-t border-border bg-background/80 backdrop-blur flex items-center justify-between">
@@ -18,7 +19,7 @@ export function WizardFooter({ step, canContinue, onBack, onNext }: Props) {
       </Button>
       <Button
         onClick={onNext}
-        disabled={!canContinue}
+        disabled={!canContinue || loading}
         className="bg-indigo-600 hover:bg-indigo-700 text-white"
       >
         {isLast ? (

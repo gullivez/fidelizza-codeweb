@@ -1,14 +1,12 @@
-import { renderPreview } from "@/lib/campaign-wizard";
-import { Check, CheckCheck } from "lucide-react";
+import { CheckCheck } from "lucide-react";
 
 export function WhatsAppPreview({
-  text,
-  restaurante = "Cantina da Nona",
+  renderedMessage,
+  restaurante = "WhatsApp",
 }: {
-  text: string;
+  renderedMessage: string;
   restaurante?: string;
 }) {
-  const rendered = text.trim() ? renderPreview(text) : "";
   return (
     <div className="mx-auto w-full max-w-[320px] rounded-[2.25rem] border-[10px] border-zinc-900 bg-zinc-900 shadow-xl overflow-hidden">
       {/* Notch */}
@@ -34,10 +32,10 @@ export function WhatsAppPreview({
             "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.4) 0, transparent 40%), radial-gradient(circle at 80% 70%, rgba(0,0,0,0.04) 0, transparent 40%)",
         }}
       >
-        {rendered ? (
+        {renderedMessage ? (
           <div className="max-w-[85%] rounded-lg rounded-tl-none bg-[#dcf8c6] px-3 py-2 shadow-sm">
             <p className="text-[13px] leading-snug text-zinc-900 whitespace-pre-wrap break-words">
-              {rendered}
+              {renderedMessage}
             </p>
             <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-500">
               <span>14:32</span>
@@ -45,14 +43,9 @@ export function WhatsAppPreview({
             </div>
           </div>
         ) : (
-          <div className="text-center text-xs text-zinc-500 mt-12">
-            Sua mensagem aparecerá aqui
-          </div>
+          <div className="text-center text-xs text-zinc-500 mt-12">Sua mensagem aparecerá aqui</div>
         )}
       </div>
     </div>
   );
 }
-
-// silence unused import warning if Check is not used in some bundlers
-export const _Check = Check;

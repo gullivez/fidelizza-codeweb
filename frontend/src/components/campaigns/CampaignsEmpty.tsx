@@ -9,11 +9,10 @@ export function CampaignsEmpty() {
         <Megaphone className="h-6 w-6" />
       </div>
       <h3 className="mt-5 text-base font-semibold text-foreground">
-        Crie sua primeira campanha
+        Nenhuma campanha criada ainda
       </h3>
       <p className="mt-2 text-sm text-muted-foreground max-w-md">
-        Você tem <span className="font-medium text-foreground">653 clientes inativos</span>{" "}
-        esperando para voltar. Recupere-os com uma mensagem no WhatsApp.
+        Crie sua primeira campanha para engajar seus clientes pelo WhatsApp.
       </p>
       <Button asChild className="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white">
         <Link to="/campanhas/nova">

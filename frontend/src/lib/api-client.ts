@@ -1,6 +1,7 @@
-import type { LoginResponse } from './api-types';
+import type { LoginResponse } from "./api-types";
 
-const API_BASE = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE =
+  (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "http://localhost:3000";
 
 // Access token vive apenas em memória — não persiste entre reloads (por design).
 let accessToken: string | null = null;
@@ -10,21 +11,21 @@ export function getAccessToken(): string | null {
 }
 
 function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('refresh_token');
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("refresh_token");
 }
 
 export function setTokens(access: string, refresh: string): void {
   accessToken = access;
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('refresh_token', refresh);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("refresh_token", refresh);
   }
 }
 
 export function clearTokens(): void {
   accessToken = null;
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('refresh_token');
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("refresh_token");
   }
 }
 
@@ -33,18 +34,18 @@ let refreshPromise: Promise<string> | null = null;
 
 async function refreshAccessToken(): Promise<string> {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) throw new Error('No refresh token');
+  if (!refreshToken) throw new Error("No refresh token");
 
   const res = await fetch(`${API_BASE}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
   });
 
   if (!res.ok) {
     clearTokens();
-    if (typeof window !== 'undefined') window.location.href = '/login';
-    throw new Error('Refresh falhou');
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new Error("Refresh falhou");
   }
 
   const data = (await res.json()) as LoginResponse;
@@ -52,14 +53,11 @@ async function refreshAccessToken(): Promise<string> {
   return data.accessToken;
 }
 
-type ApiError = Error & { status?: number; data?: unknown };
+export type ApiError = Error & { status?: number; data?: unknown };
 
-export async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
+export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const buildHeaders = (token: string | null): Record<string, string> => ({
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   });
@@ -85,8 +83,8 @@ export async function apiRequest<T>(
       res = await execute(newToken);
     } catch {
       clearTokens();
-      if (typeof window !== 'undefined') window.location.href = '/login';
-      const err: ApiError = new Error('Unauthorized');
+      if (typeof window !== "undefined") window.location.href = "/login";
+      const err: ApiError = new Error("Unauthorized");
       err.status = 401;
       throw err;
     }
@@ -94,9 +92,7 @@ export async function apiRequest<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
-    const err: ApiError = new Error(
-      (body as { message?: string }).message ?? `HTTP ${res.status}`,
-    );
+    const err: ApiError = new Error((body as { message?: string }).message ?? `HTTP ${res.status}`);
     err.status = res.status;
     err.data = body;
     throw err;

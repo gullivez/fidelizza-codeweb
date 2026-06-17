@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { WizardStep } from "@/lib/campaign-wizard";
+
+export type WizardStep = 1 | 2 | 3;
 
 const STEPS: { id: WizardStep; label: string }[] = [
   { id: 1, label: "Público" },
@@ -41,9 +42,7 @@ export function Stepper({ current }: { current: WizardStep }) {
                   {s.id}. {s.label}
                 </span>
               </div>
-              {i < STEPS.length - 1 ? (
-                <div className="flex-1 h-px bg-border mx-2" />
-              ) : null}
+              {i < STEPS.length - 1 ? <div className="flex-1 h-px bg-border mx-2" /> : null}
             </li>
           );
         })}

@@ -1,45 +1,36 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
-import { CampaignsSummaryStrip } from "@/components/campaigns/CampaignsSummaryStrip";
-import { CampaignFilters } from "@/components/campaigns/CampaignFilters";
+import { EmptyState } from "@/components/common/EmptyState";
+import { CampaignFilters, type StatusFilter } from "@/components/campaigns/CampaignFilters";
 import { CampaignsTable } from "@/components/campaigns/CampaignsTable";
 import { CampaignsEmpty } from "@/components/campaigns/CampaignsEmpty";
-import {
-  MOCK_CAMPAIGNS,
-  filterCampaigns,
-  getCampaignSummary,
-  type StatusFilter,
-} from "@/lib/mock-campaigns";
-import type { Period } from "@/lib/mock-dashboard";
-
-type ViewState = "populated" | "loading" | "empty";
-
-type Search = { view?: ViewState };
+import { useLayout } from "@/lib/layout-context";
+import { campaignsApi } from "@/lib/api/campaigns";
 
 export const Route = createFileRoute("/_app/campanhas/")({
   head: () => ({ meta: [{ title: "Campanhas — Fidelizza" }] }),
-  validateSearch: (s: Record<string, unknown>): Search => ({
-    view:
-      s.view === "loading" || s.view === "empty" || s.view === "populated"
-        ? (s.view as ViewState)
-        : undefined,
-  }),
   component: CampaignsPage,
 });
 
 function CampaignsPage() {
-  const { view = "populated" } = Route.useSearch();
+  const { activeRestaurant } = useLayout();
+  const rid = activeRestaurant?.id ?? "";
   const [status, setStatus] = useState<StatusFilter>("all");
-  const [periodo, setPeriodo] = useState<Period>("30d");
 
-  const filtered = useMemo(
-    () => filterCampaigns(MOCK_CAMPAIGNS, { status, periodo }),
-    [status, periodo],
-  );
-  const summary = useMemo(() => getCampaignSummary(filtered), [filtered]);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["campaigns", rid],
+    queryFn: () => campaignsApi.list(rid),
+    enabled: !!rid,
+  });
+
+  const filtered = useMemo(() => {
+    const list = data ?? [];
+    return status === "all" ? list : list.filter((c) => c.status === status);
+  }, [data, status]);
 
   const newCampaignButton = (
     <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -52,28 +43,27 @@ function CampaignsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Campanhas"
-        subtitle="Histórico e performance"
-        action={newCampaignButton}
-      />
+      <PageHeader title="Campanhas" subtitle="Histórico e performance" action={newCampaignButton} />
 
-      {view === "empty" ? (
+      {!rid ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title="Selecione um restaurante"
+          description="Escolha um restaurante para ver as campanhas."
+        />
+      ) : isError ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title="Falha ao carregar campanhas"
+          description="Não foi possível buscar as campanhas agora."
+          action={<Button onClick={() => refetch()}>Tentar novamente</Button>}
+        />
+      ) : !isLoading && (data?.length ?? 0) === 0 ? (
         <CampaignsEmpty />
       ) : (
         <div className="flex flex-col gap-5">
-          <CampaignsSummaryStrip
-            total={summary.total}
-            receitaTotal={summary.receitaTotal}
-            conversaoMedia={summary.conversaoMedia}
-          />
-          <CampaignFilters
-            status={status}
-            onStatusChange={setStatus}
-            periodo={periodo}
-            onPeriodoChange={setPeriodo}
-          />
-          <CampaignsTable data={filtered} loading={view === "loading"} />
+          <CampaignFilters status={status} onStatusChange={setStatus} />
+          <CampaignsTable data={filtered} loading={isLoading} />
         </div>
       )}
     </>

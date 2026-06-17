@@ -1,6 +1,14 @@
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { FunnelStep } from "@/lib/mock-campaign-detail";
+
+export type FunnelStep = {
+  key: string;
+  label: string;
+  value: number;
+  display: string;
+  pctNext?: number;
+  highlight?: boolean;
+};
 
 export function PerformanceFunnel({ steps }: { steps: FunnelStep[] }) {
   return (
@@ -60,7 +68,9 @@ function StepCell({ step }: { step: FunnelStep }) {
       <div
         className={cn(
           "mt-1 tabular-nums font-semibold tracking-tight",
-          step.highlight ? "text-emerald-600 text-2xl md:text-3xl" : "text-foreground text-xl md:text-2xl",
+          step.highlight
+            ? "text-emerald-600 text-2xl md:text-3xl"
+            : "text-foreground text-xl md:text-2xl",
         )}
       >
         {step.display}

@@ -26,12 +26,8 @@ export function ConfirmDispatchDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            Enviar para {formatNumber(count)} clientes?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            Esta ação não pode ser desfeita.
-          </AlertDialogDescription>
+          <AlertDialogTitle>Enviar para {formatNumber(count)} clientes?</AlertDialogTitle>
+          <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>

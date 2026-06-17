@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { CampaignStatus } from "@/lib/mock-campaigns";
+import type { CampaignStatus } from "@/lib/api/campaigns";
 
 const config: Record<
   CampaignStatus,
@@ -9,11 +9,6 @@ const config: Record<
     label: "Rascunho",
     classes: "bg-zinc-100 text-zinc-700 border-zinc-200",
     dot: "bg-zinc-400",
-  },
-  scheduled: {
-    label: "Agendada",
-    classes: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    dot: "bg-indigo-500",
   },
   sending: {
     label: "Enviando",

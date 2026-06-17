@@ -5,32 +5,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PeriodToggle } from "@/components/dashboard/PeriodToggle";
-import type { Period } from "@/lib/mock-dashboard";
-import type { StatusFilter } from "@/lib/mock-campaigns";
+import type { CampaignStatus } from "@/lib/api/campaigns";
+
+export type StatusFilter = CampaignStatus | "all";
 
 type Props = {
   status: StatusFilter;
   onStatusChange: (s: StatusFilter) => void;
-  periodo: Period;
-  onPeriodoChange: (p: Period) => void;
 };
 
 const statusOptions: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "Todos os status" },
   { value: "draft", label: "Rascunho" },
-  { value: "scheduled", label: "Agendada" },
   { value: "sending", label: "Enviando" },
   { value: "sent", label: "Enviada" },
   { value: "failed", label: "Falhou" },
 ];
 
-export function CampaignFilters({
-  status,
-  onStatusChange,
-  periodo,
-  onPeriodoChange,
-}: Props) {
+export function CampaignFilters({ status, onStatusChange }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Select value={status} onValueChange={(v) => onStatusChange(v as StatusFilter)}>
@@ -45,7 +37,6 @@ export function CampaignFilters({
           ))}
         </SelectContent>
       </Select>
-      <PeriodToggle value={periodo} onChange={onPeriodoChange} />
     </div>
   );
 }
