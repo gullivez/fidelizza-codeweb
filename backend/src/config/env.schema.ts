@@ -29,6 +29,9 @@ export const envSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_WHATSAPP_FROM: z.string().optional(),
   TWILIO_STATUS_WEBHOOK_SECRET: z.string().optional(),
+
+  CAMPAIGN_RATE_LIMIT_PER_SEC: z.coerce.number().default(10),
+  APP_BASE_URL: z.string().url().default('http://localhost:3000'),
 });
 
 export type Env = z.infer<typeof envSchema>;

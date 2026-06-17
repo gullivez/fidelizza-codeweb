@@ -15,6 +15,7 @@ import { CustomersModule } from './customers/customers.module';
 import { OrdersModule } from './orders/orders.module';
 import { SegmentsModule } from './segments/segments.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { MessagingModule } from './messaging/messaging.module';
     SegmentsModule,
     QueuesModule,
     MessagingModule,
+    CampaignsModule,
   ],
 })
 class WorkerAppModule {}

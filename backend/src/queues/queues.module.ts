@@ -5,13 +5,17 @@ import { RedisModule } from '../redis/redis.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { CustomersModule } from '../customers/customers.module';
 import { OrdersModule } from '../orders/orders.module';
+import { CampaignsModule } from '../campaigns/campaigns.module';
 import { PollingService } from '../integrations/polling.service';
 import { SyncIntegrationProcessor } from './processors/sync-integration.processor';
 import { IngestOrderProcessor } from './processors/ingest-order.processor';
+import { MessageStatusProcessor } from './processors/message-status.processor';
 import { RfmEngineService } from '../segments/rfm-engine.service';
 import { SegmentationProcessor } from '../segments/segmentation.processor';
 import { CustomerUpdatedListener } from '../segments/customer-updated.listener';
 import { DailyRfmScheduler } from '../segments/daily-rfm.scheduler';
+import { CampaignDispatchProcessor } from '../campaigns/campaign-dispatch.processor';
+import { RateLimiterService } from '../campaigns/rate-limiter.service';
 
 @Module({
   imports: [
@@ -20,8 +24,11 @@ import { DailyRfmScheduler } from '../segments/daily-rfm.scheduler';
     IntegrationsModule,
     CustomersModule,
     OrdersModule,
+    CampaignsModule,
     BullModule.registerQueue({ name: 'integration.ingest' }),
     BullModule.registerQueue({ name: 'segmentation.recalculate' }),
+    BullModule.registerQueue({ name: 'campaign.dispatch' }),
+    BullModule.registerQueue({ name: 'message.status' }),
   ],
   providers: [
     PollingService,
@@ -31,6 +38,9 @@ import { DailyRfmScheduler } from '../segments/daily-rfm.scheduler';
     SegmentationProcessor,
     CustomerUpdatedListener,
     DailyRfmScheduler,
+    CampaignDispatchProcessor,
+    MessageStatusProcessor,
+    RateLimiterService,
   ],
 })
 export class QueuesModule {}

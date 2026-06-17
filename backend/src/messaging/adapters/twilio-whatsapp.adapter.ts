@@ -45,3 +45,12 @@ export class TwilioWhatsAppAdapter implements WhatsAppProvider {
     return { providerMessageId: message.sid, status: 'queued' };
   }
 }
+
+export function validateTwilioSignature(
+  authToken: string,
+  signature: string,
+  url: string,
+  params: Record<string, unknown>,
+): boolean {
+  return twilio.validateRequest(authToken, signature, url, params);
+}

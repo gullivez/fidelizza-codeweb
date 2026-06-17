@@ -29,4 +29,12 @@ export default () => ({
       statusWebhookSecret: process.env.TWILIO_STATUS_WEBHOOK_SECRET,
     },
   },
+
+  campaign: {
+    rateLimitPerSec: Number(process.env.CAMPAIGN_RATE_LIMIT_PER_SEC ?? 10),
+  },
+
+  app: {
+    baseUrl: process.env.APP_BASE_URL ?? 'http://localhost:3000',
+  },
 });
