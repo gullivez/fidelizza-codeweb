@@ -27,7 +27,8 @@ export class MessagingController {
     @Req() req: Request,
     @Body() body: Record<string, string>,
   ): Promise<void> {
-    const authToken = this.config.get<string>('whatsapp.twilio.authToken') ?? '';
+    const authToken =
+      this.config.get<string>('whatsapp.twilio.authToken') ?? '';
     const signature = req.headers['x-twilio-signature'] as string;
     const url = `${this.config.get<string>('app.baseUrl')}/webhooks/twilio/status`;
 

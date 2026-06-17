@@ -28,12 +28,12 @@ export class SegmentationProcessor extends WorkerHost {
 
     const { accountId, restaurantId } = job.data;
     const start = Date.now();
-    this.logger.log(
-      { restaurantId, jobId: job.id },
-      'RFM recalculate started',
-    );
+    this.logger.log({ restaurantId, jobId: job.id }, 'RFM recalculate started');
 
-    const count = await this.rfmEngineService.recalculate(accountId, restaurantId);
+    const count = await this.rfmEngineService.recalculate(
+      accountId,
+      restaurantId,
+    );
 
     this.logger.log(
       { restaurantId, jobId: job.id, count, ms: Date.now() - start },

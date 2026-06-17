@@ -8,6 +8,13 @@ interface MessageStatusJobData {
   status: string;
 }
 
+interface MessageLogLookupRow {
+  id: string;
+  account_id: string;
+  restaurant_id: string;
+  old_status: string;
+}
+
 @Processor('message.status', { concurrency: 10 })
 export class MessageStatusProcessor extends WorkerHost {
   private readonly logger = new Logger(MessageStatusProcessor.name);
@@ -27,25 +34,35 @@ export class MessageStatusProcessor extends WorkerHost {
     `;
 
     if (!rows.length) {
-      this.logger.warn(`message_log não encontrado para provider_message_id=${providerMessageId}`);
+      this.logger.warn(
+        `message_log não encontrado para provider_message_id=${providerMessageId}`,
+      );
       return;
     }
 
-    const { id, account_id: accountId, restaurant_id: restaurantId, old_status: oldStatus } = rows[0];
+    const {
+      id,
+      account_id: accountId,
+      restaurant_id: restaurantId,
+      old_status: oldStatus,
+    } = rows[0] as unknown as MessageLogLookupRow;
 
     await this.db.runInTenantContext(
-      accountId as string,
+      accountId,
       (sql) => sql`
         UPDATE message_log
         SET status       = ${status},
             delivered_at = CASE WHEN ${status} = 'delivered' THEN now() ELSE delivered_at END,
             read_at      = CASE WHEN ${status} = 'read'      THEN now() ELSE read_at      END
-        WHERE id            = ${id as string}
-          AND account_id    = ${accountId as string}
-          AND restaurant_id = ${restaurantId as string}
+        WHERE id            = ${id}
+          AND account_id    = ${accountId}
+          AND restaurant_id = ${restaurantId}
       `,
     );
 
-    this.logger.log({ providerMessageId, oldStatus, newStatus: status }, 'message status updated');
+    this.logger.log(
+      { providerMessageId, oldStatus, newStatus: status },
+      'message status updated',
+    );
   }
 }

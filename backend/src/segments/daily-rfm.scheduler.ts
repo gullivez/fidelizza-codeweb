@@ -34,7 +34,10 @@ export class DailyRfmScheduler implements OnModuleInit {
       WHERE status = 'active'
     `;
 
-    this.logger.log({ count: rows.length }, 'Daily RFM: enqueueing per-restaurant jobs');
+    this.logger.log(
+      { count: rows.length },
+      'Daily RFM: enqueueing per-restaurant jobs',
+    );
 
     for (const row of rows) {
       await this.queue.add(

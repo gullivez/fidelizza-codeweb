@@ -34,14 +34,14 @@ export class SyncIntegrationProcessor extends WorkerHost {
   async process(job: Job<SyncJobData>): Promise<void> {
     if (job.name === 'reschedule-polling') {
       this.pollingService.reschedule(
-        job.data.integrationId as string,
+        job.data.integrationId,
         job.data.syncTime1 as string,
         (job.data.syncTime2 as string | null) ?? null,
       );
       return;
     }
     if (job.name === 'cancel-polling') {
-      this.pollingService.cancelSchedule(job.data.integrationId as string);
+      this.pollingService.cancelSchedule(job.data.integrationId);
       return;
     }
     if (job.name !== 'sync') return;
@@ -107,7 +107,11 @@ export class SyncIntegrationProcessor extends WorkerHost {
         `;
       }
       if (accountId) {
-        await this.integrationsService.markSyncError(integrationId, error, accountId);
+        await this.integrationsService.markSyncError(
+          integrationId,
+          error,
+          accountId,
+        );
       }
       throw err;
     } finally {

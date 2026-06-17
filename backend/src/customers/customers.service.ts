@@ -98,9 +98,7 @@ export class CustomersService {
     const searchWhere = search
       ? db`AND (c.name ILIKE ${'%' + search + '%'} OR c.phone ILIKE ${'%' + search + '%'})`
       : db``;
-    const segmentWhere = segment
-      ? db`AND cs.segment_name = ${segment}`
-      : db``;
+    const segmentWhere = segment ? db`AND cs.segment_name = ${segment}` : db``;
 
     const [rows, countRows] = await Promise.all([
       this.db.runInTenantContext(

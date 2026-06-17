@@ -6,7 +6,12 @@ import {
   HttpCode,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { RestaurantAccessGuard } from '../common/guards/restaurant-access.guard';
 import { SegmentsService } from './segments.service';
 import {

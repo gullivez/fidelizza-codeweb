@@ -54,7 +54,9 @@ export class CampaignsController {
   }
 
   @Get(':id/preview')
-  @ApiOperation({ summary: 'Pré-visualiza a mensagem para um cliente do segmento' })
+  @ApiOperation({
+    summary: 'Pré-visualiza a mensagem para um cliente do segmento',
+  })
   preview(
     @Param('restaurantId') restaurantId: string,
     @Param('id') id: string,

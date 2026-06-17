@@ -10,11 +10,14 @@ import type {
 } from './dto/segment-stats-response.dto';
 
 // Metadata is fixed by design — 4 segments, defined in the spec.
-const SEGMENT_META: Record<string, { label: string; color: string; order: number }> = {
-  champions: { label: 'Campeões',  color: '#f59e0b', order: 1 },
-  new:       { label: 'Novos',     color: '#3b82f6', order: 2 },
-  at_risk:   { label: 'Em Risco',  color: '#ef4444', order: 3 },
-  inactive:  { label: 'Inativos',  color: '#6b7280', order: 4 },
+const SEGMENT_META: Record<
+  string,
+  { label: string; color: string; order: number }
+> = {
+  champions: { label: 'Campeões', color: '#f59e0b', order: 1 },
+  new: { label: 'Novos', color: '#3b82f6', order: 2 },
+  at_risk: { label: 'Em Risco', color: '#ef4444', order: 3 },
+  inactive: { label: 'Inativos', color: '#6b7280', order: 4 },
 };
 
 @Injectable()
@@ -49,9 +52,9 @@ export class SegmentsService {
 
     const counts: Record<string, number> = {
       champions: row['champions'] as number,
-      new:       row['new_seg']   as number,
-      at_risk:   row['at_risk']   as number,
-      inactive:  row['inactive']  as number,
+      new: row['new_seg'] as number,
+      at_risk: row['at_risk'] as number,
+      inactive: row['inactive'] as number,
     };
     const total = row['total'] as number;
 
@@ -62,7 +65,8 @@ export class SegmentsService {
         label: meta.label,
         color: meta.color,
         count: counts[name] ?? 0,
-        percentage: total > 0 ? Math.round(((counts[name] ?? 0) / total) * 1000) / 10 : 0,
+        percentage:
+          total > 0 ? Math.round(((counts[name] ?? 0) / total) * 1000) / 10 : 0,
       }));
 
     return {
@@ -72,13 +76,15 @@ export class SegmentsService {
     };
   }
 
-  async enqueueRecalculate(restaurantId: string): Promise<RecalculateResponseDto> {
+  async enqueueRecalculate(
+    restaurantId: string,
+  ): Promise<RecalculateResponseDto> {
     const { accountId } = this.tenantContext.get();
 
-    const job = await this.queue.add(
-      'recalculate',
-      { accountId, restaurantId },
-    );
+    const job = await this.queue.add('recalculate', {
+      accountId,
+      restaurantId,
+    });
 
     return {
       jobId: job.id ?? '',

@@ -63,7 +63,9 @@ export class AnotaAiAdapter extends IntegrationAdapter {
       });
 
       if (!res.ok) {
-        throw new Error(`Anota.ai /ping/list error: ${res.status} ${res.statusText}`);
+        throw new Error(
+          `Anota.ai /ping/list error: ${res.status} ${res.statusText}`,
+        );
       }
 
       const body = (await res.json()) as AnotaAiListResponse;
@@ -79,7 +81,9 @@ export class AnotaAiAdapter extends IntegrationAdapter {
       currentPage++;
     }
 
-    this.logger.debug(`fetchOrders: found ${ids.length} order IDs for ${dateStr}`);
+    this.logger.debug(
+      `fetchOrders: found ${ids.length} order IDs for ${dateStr}`,
+    );
 
     // Passo 2: buscar detalhe de cada pedido em paralelo
     const results = await Promise.allSettled(
@@ -92,11 +96,15 @@ export class AnotaAiAdapter extends IntegrationAdapter {
       if (result.status === 'fulfilled' && result.value !== null) {
         orders.push(result.value);
       } else if (result.status === 'rejected') {
-        this.logger.warn(`Failed to fetch order detail: ${String(result.reason)}`);
+        this.logger.warn(
+          `Failed to fetch order detail: ${String(result.reason)}`,
+        );
       }
     }
 
-    this.logger.debug(`fetchOrders: returning ${orders.length} valid orders for ${dateStr}`);
+    this.logger.debug(
+      `fetchOrders: returning ${orders.length} valid orders for ${dateStr}`,
+    );
     return orders;
   }
 
@@ -109,17 +117,26 @@ export class AnotaAiAdapter extends IntegrationAdapter {
     });
 
     if (!res.ok) {
-      throw new Error(`Anota.ai GET order ${orderId}: ${res.status} ${res.statusText}`);
+      throw new Error(
+        `Anota.ai GET order ${orderId}: ${res.status} ${res.statusText}`,
+      );
     }
 
     const body = (await res.json()) as AnotaAiDetailResponse;
     const info = body.info;
-    const customer = (info['customer'] ?? null) as Record<string, unknown> | null;
+    const customer = (info['customer'] ?? null) as Record<
+      string,
+      unknown
+    > | null;
 
-    const rawPhone = String((customer?.['phone'] as string) ?? '').replace(/\D/g, '');
+    const rawPhone = String((customer?.['phone'] as string) ?? '').replace(
+      /\D/g,
+      '',
+    );
 
     // Phone inválido: vazio, só zeros, ou menos de 10 dígitos
-    const isInvalidPhone = !rawPhone || rawPhone.length < 10 || /^0+$/.test(rawPhone);
+    const isInvalidPhone =
+      !rawPhone || rawPhone.length < 10 || /^0+$/.test(rawPhone);
     if (isInvalidPhone) {
       this.logger.debug(
         `fetchOrderDetail: skipping order ${orderId} — invalid phone "${rawPhone}"`,
@@ -129,11 +146,15 @@ export class AnotaAiAdapter extends IntegrationAdapter {
 
     const phone = rawPhone.startsWith('55') ? `+${rawPhone}` : `+55${rawPhone}`;
 
-    const items = ((info['items'] as Record<string, unknown>[] | null) ?? []).filter(Boolean);
+    const items = (
+      (info['items'] as Record<string, unknown>[] | null) ?? []
+    ).filter(Boolean);
 
     return {
       externalId: String((info['_id'] as string) ?? orderId),
-      orderedAt: info['createdAt'] ? new Date(info['createdAt'] as string) : new Date(),
+      orderedAt: info['createdAt']
+        ? new Date(info['createdAt'] as string)
+        : new Date(),
       status: STATUS_MAP[Number(info['check'] ?? -1)] ?? 'pending',
       totalAmount: Number(info['total'] ?? 0),
       customer: {

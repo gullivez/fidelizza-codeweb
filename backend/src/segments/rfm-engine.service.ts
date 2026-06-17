@@ -109,7 +109,8 @@ export class RfmEngineService {
       `;
 
       // Phase D: return count for logging
-      const countRows = await sql`SELECT COUNT(*)::int AS count FROM _rfm_classified`;
+      const countRows =
+        await sql`SELECT COUNT(*)::int AS count FROM _rfm_classified`;
       return countRows[0]['count'] as number;
     });
   }

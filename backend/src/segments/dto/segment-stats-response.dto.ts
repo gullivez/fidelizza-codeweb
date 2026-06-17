@@ -13,7 +13,9 @@ export class SegmentDto {
   @ApiProperty()
   count: number;
 
-  @ApiProperty({ description: 'Percentual sobre total de clientes segmentados' })
+  @ApiProperty({
+    description: 'Percentual sobre total de clientes segmentados',
+  })
   percentage: number;
 }
 

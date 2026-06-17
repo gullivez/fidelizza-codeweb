@@ -37,7 +37,11 @@ export class CampaignDispatchProcessor extends WorkerHost {
   async process(job: Job<DispatchJobData>): Promise<void> {
     const { campaignId, accountId, restaurantId } = job.data;
 
-    const campaign = await this.getCampaign(accountId, restaurantId, campaignId);
+    const campaign = await this.getCampaign(
+      accountId,
+      restaurantId,
+      campaignId,
+    );
     const targets = await this.campaignsService.findEligibleTargets(
       accountId,
       restaurantId,
@@ -177,7 +181,10 @@ export class CampaignDispatchProcessor extends WorkerHost {
       );
 
       for (const row of inserted) {
-        targetIdByCustomerId.set(row['customer_id'] as string, row['id'] as string);
+        targetIdByCustomerId.set(
+          row['customer_id'] as string,
+          row['id'] as string,
+        );
       }
     }
 

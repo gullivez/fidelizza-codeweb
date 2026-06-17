@@ -20,7 +20,9 @@ export class RateLimiterService {
       if (count === 1) await client.expire(key, 1);
       if (count <= limit) return;
 
-      await new Promise((resolve) => setTimeout(resolve, 50 + Math.random() * 100));
+      await new Promise((resolve) =>
+        setTimeout(resolve, 50 + Math.random() * 100),
+      );
     }
   }
 }

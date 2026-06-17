@@ -222,7 +222,11 @@ export class IntegrationsService {
     );
   }
 
-  async markSyncError(id: string, error: string, accountId: string): Promise<void> {
+  async markSyncError(
+    id: string,
+    error: string,
+    accountId: string,
+  ): Promise<void> {
     await this.db.runInTenantContext(
       accountId,
       (sql) => sql`

@@ -194,11 +194,17 @@ export class CampaignsService {
       throw new NotFoundException('Campanha não encontrada');
     }
     if (campaignRows[0]['status'] !== 'draft') {
-      throw new ConflictException('Campanha já foi disparada ou não está em draft');
+      throw new ConflictException(
+        'Campanha já foi disparada ou não está em draft',
+      );
     }
 
     const segmentName = campaignRows[0]['segment_name'] as string;
-    const targets = await this.findEligibleTargets(accountId, restaurantId, segmentName);
+    const targets = await this.findEligibleTargets(
+      accountId,
+      restaurantId,
+      segmentName,
+    );
 
     // Enfileira antes de mudar o status — se o enqueue falhar, a campanha continua em draft.
     await this.queue.add(
@@ -215,7 +221,8 @@ export class CampaignsService {
       `,
     );
 
-    const rateLimitPerSec = this.config.get<number>('campaign.rateLimitPerSec') ?? 10;
+    const rateLimitPerSec =
+      this.config.get<number>('campaign.rateLimitPerSec') ?? 10;
 
     return {
       campaignId: id,
@@ -279,7 +286,10 @@ export class CampaignsService {
     return (rows[0]?.['status'] as string) ?? 'sending';
   }
 
-  private renderMessage(template: string, variables: Record<string, string>): string {
+  private renderMessage(
+    template: string,
+    variables: Record<string, string>,
+  ): string {
     return Object.entries(variables).reduce(
       (msg, [key, value]) => msg.replaceAll(`{${key}}`, value),
       template,
