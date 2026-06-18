@@ -3,60 +3,29 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { DatabaseService } from '../database/database.service';
 import { TenantContextService } from '../tenant/tenant-context.service';
+import { CryptoService } from '../common/crypto/crypto.service';
 import type { CreateIntegrationDto } from './dto/create-integration.dto';
 import type { UpdateIntegrationDto } from './dto/update-integration.dto';
 import type { IntegrationResponseDto } from './dto/integration-response.dto';
 
-const ALGORITHM = 'aes-256-cbc';
-const IV_LENGTH = 16;
-
 @Injectable()
 export class IntegrationsService {
-  private readonly aesKey: Buffer;
-
   constructor(
     private readonly db: DatabaseService,
     private readonly tenantContext: TenantContextService,
-    private readonly configService: ConfigService,
+    private readonly cryptoService: CryptoService,
     @InjectQueue('integration.ingest') private readonly ingestQueue: Queue,
-  ) {
-    const secret = this.configService.get<string>('aesSecret')!;
-    this.aesKey = Buffer.from(secret.slice(0, 32).padEnd(32, '0'));
-  }
-
-  // ── AES helpers ──────────────────────────────────────────────────────────
-
-  encrypt(text: string): string {
-    const iv = randomBytes(IV_LENGTH);
-    const cipher = createCipheriv(ALGORITHM, this.aesKey, iv);
-    const encrypted = Buffer.concat([
-      cipher.update(text, 'utf8'),
-      cipher.final(),
-    ]);
-    return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
-  }
-
-  decrypt(encryptedText: string): string {
-    const [ivHex, dataHex] = encryptedText.split(':');
-    const iv = Buffer.from(ivHex, 'hex');
-    const data = Buffer.from(dataHex, 'hex');
-    const decipher = createDecipheriv(ALGORITHM, this.aesKey, iv);
-    return Buffer.concat([decipher.update(data), decipher.final()]).toString(
-      'utf8',
-    );
-  }
+  ) {}
 
   decryptCredentials(credentialsEnc: string): {
     clientId: string;
     clientSecret: string;
   } {
-    return JSON.parse(this.decrypt(credentialsEnc)) as {
+    return JSON.parse(this.cryptoService.decrypt(credentialsEnc)) as {
       clientId: string;
       clientSecret: string;
     };
@@ -127,7 +96,7 @@ export class IntegrationsService {
     dto: CreateIntegrationDto,
   ): Promise<IntegrationResponseDto> {
     const { accountId } = this.tenantContext.get();
-    const credentialsEnc = this.encrypt(
+    const credentialsEnc = this.cryptoService.encrypt(
       JSON.stringify({
         clientId: dto.clientId,
         clientSecret: dto.clientSecret,

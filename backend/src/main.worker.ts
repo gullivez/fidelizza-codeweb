@@ -7,6 +7,7 @@ import { LoggerModule } from 'nestjs-pino';
 
 import configuration from './config/configuration';
 import { validateEnv } from './config/validate-env';
+import { CryptoModule } from './common/crypto/crypto.module';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { QueuesModule } from './queues/queues.module';
@@ -42,6 +43,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
       }),
     }),
     EventEmitterModule.forRoot(),
+    CryptoModule,
     DatabaseModule,
     RedisModule,
     IntegrationsModule,

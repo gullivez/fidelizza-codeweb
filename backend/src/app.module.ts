@@ -13,6 +13,7 @@ import { AppService } from './app.service';
 import configuration from './config/configuration';
 import { validateEnv } from './config/validate-env';
 
+import { CryptoModule } from './common/crypto/crypto.module';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
@@ -56,6 +57,7 @@ import { TenantContextService } from './tenant/tenant-context.service';
       }),
     }),
     EventEmitterModule.forRoot(),
+    CryptoModule,
     DatabaseModule,
     RedisModule,
     AuthModule,
