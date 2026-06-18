@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
@@ -9,7 +10,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { RestaurantAccessGuard } from '../common/guards/restaurant-access.guard';
 import { CampaignsService } from './campaigns.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
@@ -76,5 +82,18 @@ export class CampaignsController {
       throw new BadRequestException('Header Idempotency-Key é obrigatório');
     }
     return this.campaignsService.dispatch(id, restaurantId, idempotencyKey);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Exclui uma campanha em rascunho' })
+  @ApiResponse({ status: 204, description: 'Excluída com sucesso' })
+  @ApiResponse({ status: 404, description: 'Campanha não encontrada' })
+  @ApiResponse({ status: 409, description: 'Campanha não está em rascunho' })
+  remove(
+    @Param('restaurantId') restaurantId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.campaignsService.remove(id, restaurantId);
   }
 }

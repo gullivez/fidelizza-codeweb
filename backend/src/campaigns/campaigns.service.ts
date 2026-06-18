@@ -42,13 +42,13 @@ export class CampaignsService {
       (sql) => sql`
         INSERT INTO campaign (
           account_id, restaurant_id, name, segment_name,
-          template_name, content_sid, template_params, attribution_window_days
+          template_name, content_sid, message_body, template_params, attribution_window_days
         ) VALUES (
           ${accountId}, ${restaurantId}, ${dto.name}, ${dto.segmentName},
-          ${dto.templateName}, ${dto.contentSid}, ${sql.json(dto.templateParams ?? {})},
-          ${dto.attributionWindowDays ?? 7}
+          ${dto.templateName}, ${dto.contentSid}, ${dto.messageBody},
+          ${sql.json(dto.templateParams ?? {})}, ${dto.attributionWindowDays ?? 7}
         )
-        RETURNING id, name, segment_name, template_name, content_sid, status,
+        RETURNING id, name, segment_name, template_name, content_sid, message_body, status,
                   total_targets, created_at, sent_at
       `,
     );
@@ -62,7 +62,7 @@ export class CampaignsService {
     const rows = await this.db.runInTenantContext(
       accountId,
       (sql) => sql`
-        SELECT id, name, segment_name, template_name, content_sid, status,
+        SELECT id, name, segment_name, template_name, content_sid, message_body, status,
                total_targets, created_at, sent_at
         FROM campaign
         WHERE restaurant_id = ${restaurantId} AND account_id = ${accountId}
@@ -82,7 +82,7 @@ export class CampaignsService {
     const rows = await this.db.runInTenantContext(
       accountId,
       (sql) => sql`
-        SELECT c.id, c.name, c.segment_name, c.template_name, c.content_sid,
+        SELECT c.id, c.name, c.segment_name, c.template_name, c.content_sid, c.message_body,
                c.status, c.total_targets, c.created_at, c.sent_at,
                COUNT(ml.id)::int AS total,
                COUNT(CASE WHEN ml.status = 'queued'    THEN 1 END)::int AS queued,
@@ -125,7 +125,7 @@ export class CampaignsService {
     const campaignRows = await this.db.runInTenantContext(
       accountId,
       (sql) => sql`
-        SELECT segment_name, template_name, template_params
+        SELECT segment_name, message_body, template_params
         FROM campaign
         WHERE id = ${id} AND restaurant_id = ${restaurantId} AND account_id = ${accountId}
       `,
@@ -150,13 +150,10 @@ export class CampaignsService {
     }
 
     const target = targets[0];
-    const variables = {
-      ...(campaign['template_params'] as Record<string, string>),
-      '1': target.name,
-    };
     const renderedMessage = this.renderMessage(
-      campaign['template_name'] as string,
-      variables,
+      campaign['message_body'] as string,
+      campaign['template_params'] as Record<string, string>,
+      target.name,
     );
 
     return {
@@ -271,6 +268,36 @@ export class CampaignsService {
     }));
   }
 
+  async remove(id: string, restaurantId: string): Promise<void> {
+    const { accountId } = this.tenantContext.get();
+
+    const rows = await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
+        SELECT status FROM campaign
+        WHERE id = ${id} AND restaurant_id = ${restaurantId} AND account_id = ${accountId}
+      `,
+    );
+
+    if (!rows.length) {
+      throw new NotFoundException('Campanha não encontrada');
+    }
+    if (rows[0]['status'] !== 'draft') {
+      throw new ConflictException(
+        'Apenas campanhas em rascunho podem ser excluídas',
+      );
+    }
+
+    await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
+        DELETE FROM campaign
+        WHERE id = ${id} AND restaurant_id = ${restaurantId} AND account_id = ${accountId}
+          AND status = 'draft'
+      `,
+    );
+  }
+
   private async getCampaignStatus(
     id: string,
     restaurantId: string,
@@ -287,13 +314,15 @@ export class CampaignsService {
   }
 
   private renderMessage(
-    template: string,
-    variables: Record<string, string>,
+    messageBody: string,
+    templateParams: Record<string, string>,
+    customerName: string,
   ): string {
-    return Object.entries(variables).reduce(
-      (msg, [key, value]) => msg.replaceAll(`{${key}}`, value),
-      template,
-    );
+    let rendered = messageBody;
+    for (const [key, value] of Object.entries(templateParams)) {
+      rendered = rendered.replaceAll(`{{${key}}}`, value);
+    }
+    return rendered.replaceAll('{{1}}', customerName);
   }
 
   private mapCampaignRow(row: Record<string, unknown>): CampaignResponseDto {
@@ -303,6 +332,7 @@ export class CampaignsService {
       segmentName: row['segment_name'] as string,
       templateName: row['template_name'] as string,
       contentSid: row['content_sid'] as string,
+      messageBody: row['message_body'] as string,
       status: row['status'] as string,
       totalTargets: row['total_targets'] as number,
       createdAt: row['created_at'] as Date,

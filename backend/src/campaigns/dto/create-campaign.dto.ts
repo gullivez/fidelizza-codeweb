@@ -29,6 +29,12 @@ export class CreateCampaignDto {
   @IsNotEmpty()
   contentSid: string;
 
+  @ApiProperty({
+    description: 'Corpo do template, ex: "Olá {{1}}, sentimos sua falta!"',
+  })
+  @IsNotEmpty()
+  messageBody: string;
+
   @ApiPropertyOptional({ default: {} })
   @IsOptional()
   @IsObject()

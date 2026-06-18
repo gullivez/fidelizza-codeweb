@@ -6,6 +6,7 @@ export class CampaignResponseDto {
   @ApiProperty() segmentName: string;
   @ApiProperty() templateName: string;
   @ApiProperty() contentSid: string;
+  @ApiProperty() messageBody: string;
   @ApiProperty() status: string;
   @ApiProperty() totalTargets: number;
   @ApiProperty() createdAt: Date;

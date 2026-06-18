@@ -20,15 +20,19 @@ type WizardState = {
   segmentName: string | null;
   templateName: string;
   contentSid: string;
+  messageBody: string;
   templateParams: Record<string, string>;
   attributionWindowDays: number;
 };
+
+type CreatedSnapshot = Omit<WizardState, "segmentName"> & { segmentName: string };
 
 const INITIAL_STATE: WizardState = {
   name: "",
   segmentName: null,
   templateName: "",
   contentSid: "",
+  messageBody: "",
   templateParams: {},
   attributionWindowDays: 7,
 };
@@ -47,6 +51,7 @@ function NovaCampanhaPage() {
   const [step, setStep] = useState<WizardStep>(1);
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
   const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [createdSnapshot, setCreatedSnapshot] = useState<CreatedSnapshot | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [previewResult, setPreviewResult] = useState<CampaignPreviewResponse | null>(null);
   const [previewNoEligible, setPreviewNoEligible] = useState(false);
@@ -65,15 +70,15 @@ function NovaCampanhaPage() {
         segmentName: state.segmentName!,
         templateName: state.templateName,
         contentSid: state.contentSid,
+        messageBody: state.messageBody,
         templateParams: state.templateParams,
         attributionWindowDays: state.attributionWindowDays,
       }),
-    onSuccess: (data) => setCampaignId(data.id),
     onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao criar campanha"),
   });
 
   const previewMutation = useMutation({
-    mutationFn: () => campaignsApi.preview(rid, campaignId!),
+    mutationFn: (id: string) => campaignsApi.preview(rid, id),
     onSuccess: (data) => {
       setPreviewResult(data);
       setPreviewNoEligible(false);
@@ -99,15 +104,49 @@ function NovaCampanhaPage() {
       toast.error(err instanceof Error ? err.message : "Falha ao disparar campanha"),
   });
 
+  const hasPreviewed = previewResult !== null || previewNoEligible;
+
   const canContinue =
     step === 1
       ? state.name.trim().length > 0 && state.segmentName !== null
       : step === 2
-        ? state.templateName.trim().length > 0 && state.contentSid.trim().length > 0
+        ? state.templateName.trim().length > 0 &&
+          state.contentSid.trim().length > 0 &&
+          state.messageBody.trim().length > 0 &&
+          hasPreviewed
         : true;
 
   const update = <K extends keyof WizardState>(k: K, v: WizardState[K]) =>
     setState((s) => ({ ...s, [k]: v }));
+
+  const handlePreview = async () => {
+    const isStale =
+      !campaignId ||
+      !createdSnapshot ||
+      createdSnapshot.name !== state.name ||
+      createdSnapshot.segmentName !== state.segmentName ||
+      createdSnapshot.templateName !== state.templateName ||
+      createdSnapshot.contentSid !== state.contentSid ||
+      createdSnapshot.messageBody !== state.messageBody ||
+      createdSnapshot.attributionWindowDays !== state.attributionWindowDays ||
+      JSON.stringify(createdSnapshot.templateParams) !== JSON.stringify(state.templateParams);
+
+    let id = campaignId;
+
+    if (isStale) {
+      try {
+        const created = await createMutation.mutateAsync();
+        id = created.id;
+        setCampaignId(id);
+        setCreatedSnapshot({ ...state, segmentName: state.segmentName! });
+      } catch {
+        return;
+      }
+    }
+
+    if (!id) return;
+    previewMutation.mutate(id);
+  };
 
   const handleNext = () => {
     if (step === 1) {
@@ -115,10 +154,6 @@ function NovaCampanhaPage() {
       return;
     }
     if (step === 2) {
-      if (!campaignId) {
-        createMutation.mutate();
-        return;
-      }
       setStep(3);
       return;
     }
@@ -126,11 +161,6 @@ function NovaCampanhaPage() {
   };
 
   const handleBack = () => {
-    if (step === 2) {
-      setCampaignId(null);
-      setPreviewResult(null);
-      setPreviewNoEligible(false);
-    }
     if (step > 1) setStep((s) => (s - 1) as WizardStep);
   };
 
@@ -177,13 +207,14 @@ function NovaCampanhaPage() {
             onContentSidChange={(v) => update("contentSid", v)}
             templateParams={state.templateParams}
             onTemplateParamsChange={(v) => update("templateParams", v)}
+            messageBody={state.messageBody}
+            onMessageBodyChange={(v) => update("messageBody", v)}
             attributionWindowDays={state.attributionWindowDays}
             onAttributionWindowDaysChange={(n) => update("attributionWindowDays", n)}
-            campaignId={campaignId}
-            onPreview={() => previewMutation.mutate()}
+            onPreview={handlePreview}
             previewResult={previewResult}
             previewNoEligible={previewNoEligible}
-            isPreviewing={previewMutation.isPending}
+            isPreviewing={createMutation.isPending || previewMutation.isPending}
           />
         )}
         {step === 3 && (
@@ -199,7 +230,10 @@ function NovaCampanhaPage() {
         <WizardFooter
           step={step}
           canContinue={canContinue}
-          loading={createMutation.isPending || dispatchMutation.isPending}
+          loading={dispatchMutation.isPending}
+          disabledReason={
+            step === 2 && !hasPreviewed ? "Pré-visualize a mensagem antes de continuar." : undefined
+          }
           onBack={handleBack}
           onNext={handleNext}
         />

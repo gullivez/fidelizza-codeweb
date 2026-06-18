@@ -6,22 +6,10 @@ export const SEGMENT_LABELS: Record<string, string> = {
 };
 
 export function formatShortDate(iso: string) {
-  const [, month = "01", day = "01"] = iso.match(/^(\d{4})-(\d{2})-(\d{2})/) ?? [];
-  const months = [
-    "jan.",
-    "fev.",
-    "mar.",
-    "abr.",
-    "mai.",
-    "jun.",
-    "jul.",
-    "ago.",
-    "set.",
-    "out.",
-    "nov.",
-    "dez.",
-  ];
-  return `${Number(day).toString().padStart(2, "0")} de ${months[Number(month) - 1] ?? "jan."}`;
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
 }
 
 export function formatLongDate(iso: string) {

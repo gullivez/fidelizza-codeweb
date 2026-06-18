@@ -63,7 +63,7 @@ function CampaignsPage() {
       ) : (
         <div className="flex flex-col gap-5">
           <CampaignFilters status={status} onStatusChange={setStatus} />
-          <CampaignsTable data={filtered} loading={isLoading} />
+          <CampaignsTable data={filtered} loading={isLoading} restaurantId={rid} />
         </div>
       )}
     </>

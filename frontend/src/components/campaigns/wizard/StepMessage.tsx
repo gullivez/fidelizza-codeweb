@@ -2,6 +2,7 @@ import { Info, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { WhatsAppPreview } from "./WhatsAppPreview";
 import type { CampaignPreviewResponse } from "@/lib/api/campaigns";
@@ -13,9 +14,10 @@ type Props = {
   onContentSidChange: (v: string) => void;
   templateParams: Record<string, string>;
   onTemplateParamsChange: (params: Record<string, string>) => void;
+  messageBody: string;
+  onMessageBodyChange: (v: string) => void;
   attributionWindowDays: number;
   onAttributionWindowDaysChange: (n: number) => void;
-  campaignId: string | null;
   onPreview: () => void;
   previewResult: CampaignPreviewResponse | null;
   previewNoEligible: boolean;
@@ -29,9 +31,10 @@ export function StepMessage({
   onContentSidChange,
   templateParams,
   onTemplateParamsChange,
+  messageBody,
+  onMessageBodyChange,
   attributionWindowDays,
   onAttributionWindowDaysChange,
-  campaignId,
   onPreview,
   previewResult,
   previewNoEligible,
@@ -88,6 +91,10 @@ export function StepMessage({
               placeholder="HXabc123..."
               className="mt-1.5 h-9 font-mono"
             />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Encontre no painel Twilio → Content → seu template aprovado. Começa com HX (ex:
+              HXabc123def456).
+            </p>
           </div>
 
           <div>
@@ -100,6 +107,17 @@ export function StepMessage({
                 Adicionar
               </Button>
             </div>
+
+            {rows.length > 0 ? (
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-24 text-xs font-medium text-muted-foreground">Variável</span>
+                <span className="flex-1 text-xs font-medium text-muted-foreground">
+                  Valor de exemplo
+                </span>
+                <span className="w-9" />
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-2">
               {rows.map(([key, value], index) => (
                 <div key={index} className="flex items-center gap-2">
@@ -112,7 +130,7 @@ export function StepMessage({
                   <Input
                     value={value}
                     onChange={(e) => updateRow(index, key, e.target.value)}
-                    placeholder="valor"
+                    placeholder="João Silva"
                     className="h-9 flex-1"
                   />
                   <Button
@@ -129,6 +147,29 @@ export function StepMessage({
                 <p className="text-xs text-muted-foreground">Nenhum parâmetro adicionado.</p>
               ) : null}
             </div>
+
+            <p className="mt-2 text-xs text-muted-foreground">
+              Cada variável corresponde a {"{{1}}"}, {"{{2}}"}... no seu template aprovado. O valor
+              de exemplo é usado na pré-visualização.
+            </p>
+          </div>
+
+          <div className="max-w-md">
+            <Label htmlFor="message-body" className="text-sm">
+              Corpo da mensagem
+            </Label>
+            <Textarea
+              id="message-body"
+              value={messageBody}
+              onChange={(e) => onMessageBodyChange(e.target.value)}
+              placeholder="Olá {{1}}, sentimos sua falta! Volte e aproveite nossas ofertas."
+              rows={4}
+              className="mt-1.5 resize-none"
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Use {"{{1}}"}, {"{{2}}"}... para inserir variáveis. Deve ser idêntico ao corpo do
+              template aprovado no Twilio.
+            </p>
           </div>
 
           <div className="flex items-end gap-3 max-w-md">
@@ -172,16 +213,11 @@ export function StepMessage({
             <Button
               type="button"
               variant="outline"
-              disabled={!campaignId || isPreviewing}
+              disabled={isPreviewing || !messageBody.trim()}
               onClick={onPreview}
             >
               {isPreviewing ? "Pré-visualizando..." : "Pré-visualizar"}
             </Button>
-            {!campaignId ? (
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Clique em "Continuar" para criar a campanha e habilitar a pré-visualização.
-              </p>
-            ) : null}
           </div>
         </div>
 

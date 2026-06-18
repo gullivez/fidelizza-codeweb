@@ -12,14 +12,14 @@ const config: Record<
   },
   sending: {
     label: "Enviando",
-    classes: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    dot: "bg-indigo-500",
+    classes: "bg-amber-50 text-amber-800 border-amber-200",
+    dot: "bg-amber-500",
     pulse: true,
   },
   sent: {
     label: "Enviada",
-    classes: "bg-zinc-100 text-zinc-700 border-zinc-200",
-    dot: "bg-zinc-500",
+    classes: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dot: "bg-emerald-500",
   },
   failed: {
     label: "Falhou",

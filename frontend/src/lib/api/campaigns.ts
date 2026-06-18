@@ -38,6 +38,7 @@ export interface CreateCampaignPayload {
   segmentName: string;
   templateName: string;
   contentSid: string;
+  messageBody: string;
   templateParams?: Record<string, string>;
   attributionWindowDays?: number;
 }
@@ -74,4 +75,9 @@ export const campaignsApi = {
         headers: { "Idempotency-Key": idempotencyKey },
       },
     ),
+
+  remove: (restaurantId: string, campaignId: string) =>
+    apiRequest<void>(`/restaurants/${restaurantId}/campaigns/${campaignId}`, {
+      method: "DELETE",
+    }),
 };
