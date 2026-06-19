@@ -31,8 +31,16 @@ export class TwilioWhatsAppAdapter implements WhatsAppProvider {
   async sendTemplate(params: SendTemplateParams): Promise<SendTemplateResult> {
     const last4 = params.to.slice(-4);
 
-    const message = await this.client.messages.create({
-      from: this.from,
+    const client = params.twilioCredentials
+      ? new twilio.Twilio(
+          params.twilioCredentials.accountSid,
+          params.twilioCredentials.authToken,
+        )
+      : this.client;
+    const from = params.twilioCredentials?.from ?? this.from;
+
+    const message = await client.messages.create({
+      from,
       to: `whatsapp:${params.to}`,
       contentSid: params.contentSid,
       contentVariables: JSON.stringify(params.variables),

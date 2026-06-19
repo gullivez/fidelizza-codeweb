@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { TemplateVariableMap } from '../../messaging/variables/template-renderer';
 
 export class CampaignResponseDto {
   @ApiProperty() id: string;
@@ -7,6 +8,7 @@ export class CampaignResponseDto {
   @ApiProperty() templateName: string;
   @ApiProperty() contentSid: string;
   @ApiProperty() messageBody: string;
+  @ApiProperty() templateVariables: TemplateVariableMap;
   @ApiProperty() status: string;
   @ApiProperty() totalTargets: number;
   @ApiProperty() createdAt: Date;

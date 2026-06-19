@@ -3,6 +3,11 @@ import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { DatabaseService } from '../database/database.service';
 import { MessagingService } from '../messaging/messaging.service';
+import { MessagingConfigService } from '../messaging/messaging-config.service';
+import {
+  resolveTemplateVariables,
+  type TemplateVariableMap,
+} from '../messaging/variables/template-renderer';
 import { CampaignsService, type EligibleTarget } from './campaigns.service';
 import { RateLimiterService } from './rate-limiter.service';
 
@@ -16,7 +21,12 @@ interface CampaignSnapshot {
   segmentName: string;
   templateName: string;
   contentSid: string;
-  templateParams: Record<string, string>;
+  templateVariables: TemplateVariableMap;
+}
+
+interface TargetSnapshotInfo {
+  targetId: string;
+  resolvedVariables: Record<string, string>;
 }
 
 const TARGET_INSERT_CHUNK_SIZE = 100;
@@ -30,6 +40,7 @@ export class CampaignDispatchProcessor extends WorkerHost {
     private readonly campaignsService: CampaignsService,
     private readonly messagingService: MessagingService,
     private readonly rateLimiter: RateLimiterService,
+    private readonly messagingConfigService: MessagingConfigService,
   ) {
     super();
   }
@@ -47,13 +58,24 @@ export class CampaignDispatchProcessor extends WorkerHost {
       restaurantId,
       campaign.segmentName,
     );
+    const restaurantName = await this.getRestaurantName(
+      accountId,
+      restaurantId,
+    );
 
-    const targetIdByCustomerId = await this.insertTargetSnapshots(
+    const targetInfoByCustomerId = await this.insertTargetSnapshots(
       accountId,
       restaurantId,
       campaignId,
       campaign.segmentName,
+      campaign.templateVariables,
+      restaurantName,
       targets,
+    );
+
+    const subCredentials = await this.messagingConfigService.resolveCredentials(
+      restaurantId,
+      accountId,
     );
 
     let sent = 0;
@@ -62,22 +84,22 @@ export class CampaignDispatchProcessor extends WorkerHost {
     for (const target of targets) {
       await this.rateLimiter.acquireSlot(restaurantId);
 
-      const variables = { ...campaign.templateParams, '1': target.name };
-      const campaignTargetId = targetIdByCustomerId.get(target.id)!;
+      const info = targetInfoByCustomerId.get(target.id)!;
 
       try {
         const result = await this.messagingService.sendTemplate({
           to: target.phone,
           templateName: campaign.templateName,
           contentSid: campaign.contentSid,
-          variables,
+          variables: info.resolvedVariables,
           category: 'marketing',
+          twilioCredentials: subCredentials ?? undefined,
         });
 
         await this.insertMessageLog(
           accountId,
           restaurantId,
-          campaignTargetId,
+          info.targetId,
           result.providerMessageId,
           'queued',
           null,
@@ -87,7 +109,7 @@ export class CampaignDispatchProcessor extends WorkerHost {
         await this.insertMessageLog(
           accountId,
           restaurantId,
-          campaignTargetId,
+          info.targetId,
           null,
           'failed',
           String(err),
@@ -127,7 +149,7 @@ export class CampaignDispatchProcessor extends WorkerHost {
     const rows = await this.db.runInTenantContext(
       accountId,
       (sql) => sql`
-        SELECT segment_name, template_name, content_sid, template_params
+        SELECT segment_name, template_name, content_sid, template_variables
         FROM campaign
         WHERE id = ${campaignId} AND restaurant_id = ${restaurantId} AND account_id = ${accountId}
       `,
@@ -138,8 +160,21 @@ export class CampaignDispatchProcessor extends WorkerHost {
       segmentName: row['segment_name'] as string,
       templateName: row['template_name'] as string,
       contentSid: row['content_sid'] as string,
-      templateParams: row['template_params'] as Record<string, string>,
+      templateVariables: row['template_variables'] as TemplateVariableMap,
     };
+  }
+
+  private async getRestaurantName(
+    accountId: string,
+    restaurantId: string,
+  ): Promise<string> {
+    const rows = await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
+        SELECT name FROM restaurants WHERE id = ${restaurantId} AND account_id = ${accountId}
+      `,
+    );
+    return (rows[0]?.['name'] as string) ?? '';
   }
 
   private async insertTargetSnapshots(
@@ -147,48 +182,62 @@ export class CampaignDispatchProcessor extends WorkerHost {
     restaurantId: string,
     campaignId: string,
     segmentName: string,
+    templateVariables: TemplateVariableMap,
+    restaurantName: string,
     targets: EligibleTarget[],
-  ): Promise<Map<string, string>> {
-    const targetIdByCustomerId = new Map<string, string>();
+  ): Promise<Map<string, TargetSnapshotInfo>> {
+    const targetInfoByCustomerId = new Map<string, TargetSnapshotInfo>();
 
     for (let i = 0; i < targets.length; i += TARGET_INSERT_CHUNK_SIZE) {
       const chunkTargets = targets.slice(i, i + TARGET_INSERT_CHUNK_SIZE);
-      const chunk = chunkTargets.map((t) => ({
-        campaign_id: campaignId,
-        account_id: accountId,
-        restaurant_id: restaurantId,
-        customer_id: t.id,
-        phone_snapshot: t.phone,
-        name_snapshot: t.name,
-        segment_snapshot: segmentName,
-      }));
-
-      const inserted = await this.db.runInTenantContext(
-        accountId,
-        (sql) => sql`
-          INSERT INTO campaign_target ${sql(
-            chunk,
-            'campaign_id',
-            'account_id',
-            'restaurant_id',
-            'customer_id',
-            'phone_snapshot',
-            'name_snapshot',
-            'segment_snapshot',
-          )}
-          RETURNING id, customer_id
-        `,
+      const resolvedByCustomerId = new Map(
+        chunkTargets.map((t) => [
+          t.id,
+          resolveTemplateVariables(templateVariables, {
+            customer: { name: t.name },
+            restaurant: { name: restaurantName },
+          }),
+        ]),
       );
 
+      const inserted = await this.db.runInTenantContext(accountId, (sql) => {
+        const chunk = chunkTargets.map((t) => ({
+          campaign_id: campaignId,
+          account_id: accountId,
+          restaurant_id: restaurantId,
+          customer_id: t.id,
+          phone_snapshot: t.phone,
+          name_snapshot: t.name,
+          segment_snapshot: segmentName,
+          resolved_variables: sql.json(resolvedByCustomerId.get(t.id)!),
+        }));
+
+        return sql`
+            INSERT INTO campaign_target ${sql(
+              chunk,
+              'campaign_id',
+              'account_id',
+              'restaurant_id',
+              'customer_id',
+              'phone_snapshot',
+              'name_snapshot',
+              'segment_snapshot',
+              'resolved_variables',
+            )}
+            RETURNING id, customer_id
+          `;
+      });
+
       for (const row of inserted) {
-        targetIdByCustomerId.set(
-          row['customer_id'] as string,
-          row['id'] as string,
-        );
+        const customerId = row['customer_id'] as string;
+        targetInfoByCustomerId.set(customerId, {
+          targetId: row['id'] as string,
+          resolvedVariables: resolvedByCustomerId.get(customerId)!,
+        });
       }
     }
 
-    return targetIdByCustomerId;
+    return targetInfoByCustomerId;
   }
 
   private async insertMessageLog(

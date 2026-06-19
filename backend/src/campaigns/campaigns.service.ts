@@ -8,6 +8,12 @@ import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { DatabaseService } from '../database/database.service';
 import { TenantContextService } from '../tenant/tenant-context.service';
+import { RestaurantsService } from '../restaurants/restaurants.service';
+import {
+  resolveTemplateVariables,
+  renderBody,
+  type TemplateVariableMap,
+} from '../messaging/variables/template-renderer';
 import type { CreateCampaignDto } from './dto/create-campaign.dto';
 import type {
   CampaignResponseDto,
@@ -28,6 +34,7 @@ export class CampaignsService {
     private readonly db: DatabaseService,
     private readonly tenantContext: TenantContextService,
     private readonly config: ConfigService,
+    private readonly restaurantsService: RestaurantsService,
     @InjectQueue('campaign.dispatch') private readonly queue: Queue,
   ) {}
 
@@ -42,14 +49,14 @@ export class CampaignsService {
       (sql) => sql`
         INSERT INTO campaign (
           account_id, restaurant_id, name, segment_name,
-          template_name, content_sid, message_body, template_params, attribution_window_days
+          template_name, content_sid, message_body, template_variables, attribution_window_days
         ) VALUES (
           ${accountId}, ${restaurantId}, ${dto.name}, ${dto.segmentName},
           ${dto.templateName}, ${dto.contentSid}, ${dto.messageBody},
-          ${sql.json(dto.templateParams ?? {})}, ${dto.attributionWindowDays ?? 7}
+          ${sql.json(dto.templateVariables ?? {})}, ${dto.attributionWindowDays ?? 7}
         )
-        RETURNING id, name, segment_name, template_name, content_sid, message_body, status,
-                  total_targets, created_at, sent_at
+        RETURNING id, name, segment_name, template_name, content_sid, message_body,
+                  template_variables, status, total_targets, created_at, sent_at
       `,
     );
 
@@ -62,8 +69,8 @@ export class CampaignsService {
     const rows = await this.db.runInTenantContext(
       accountId,
       (sql) => sql`
-        SELECT id, name, segment_name, template_name, content_sid, message_body, status,
-               total_targets, created_at, sent_at
+        SELECT id, name, segment_name, template_name, content_sid, message_body,
+               template_variables, status, total_targets, created_at, sent_at
         FROM campaign
         WHERE restaurant_id = ${restaurantId} AND account_id = ${accountId}
         ORDER BY created_at DESC
@@ -83,7 +90,7 @@ export class CampaignsService {
       accountId,
       (sql) => sql`
         SELECT c.id, c.name, c.segment_name, c.template_name, c.content_sid, c.message_body,
-               c.status, c.total_targets, c.created_at, c.sent_at,
+               c.template_variables, c.status, c.total_targets, c.created_at, c.sent_at,
                COUNT(ml.id)::int AS total,
                COUNT(CASE WHEN ml.status = 'queued'    THEN 1 END)::int AS queued,
                COUNT(CASE WHEN ml.status = 'sent'       THEN 1 END)::int AS sent,
@@ -125,7 +132,7 @@ export class CampaignsService {
     const campaignRows = await this.db.runInTenantContext(
       accountId,
       (sql) => sql`
-        SELECT segment_name, message_body, template_params
+        SELECT segment_name, message_body, template_variables
         FROM campaign
         WHERE id = ${id} AND restaurant_id = ${restaurantId} AND account_id = ${accountId}
       `,
@@ -150,10 +157,18 @@ export class CampaignsService {
     }
 
     const target = targets[0];
-    const renderedMessage = this.renderMessage(
+    const restaurant = await this.restaurantsService.findOne(restaurantId);
+
+    const resolvedValues = resolveTemplateVariables(
+      campaign['template_variables'] as TemplateVariableMap,
+      {
+        customer: { name: target.name },
+        restaurant: { name: restaurant['name'] as string },
+      },
+    );
+    const renderedMessage = renderBody(
       campaign['message_body'] as string,
-      campaign['template_params'] as Record<string, string>,
-      target.name,
+      resolvedValues,
     );
 
     return {
@@ -313,18 +328,6 @@ export class CampaignsService {
     return (rows[0]?.['status'] as string) ?? 'sending';
   }
 
-  private renderMessage(
-    messageBody: string,
-    templateParams: Record<string, string>,
-    customerName: string,
-  ): string {
-    let rendered = messageBody;
-    for (const [key, value] of Object.entries(templateParams)) {
-      rendered = rendered.replaceAll(`{{${key}}}`, value);
-    }
-    return rendered.replaceAll('{{1}}', customerName);
-  }
-
   private mapCampaignRow(row: Record<string, unknown>): CampaignResponseDto {
     return {
       id: row['id'] as string,
@@ -333,6 +336,7 @@ export class CampaignsService {
       templateName: row['template_name'] as string,
       contentSid: row['content_sid'] as string,
       messageBody: row['message_body'] as string,
+      templateVariables: row['template_variables'] as TemplateVariableMap,
       status: row['status'] as string,
       totalTargets: row['total_targets'] as number,
       createdAt: row['created_at'] as Date,

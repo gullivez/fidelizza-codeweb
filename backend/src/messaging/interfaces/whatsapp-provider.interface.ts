@@ -4,6 +4,12 @@ export interface SendTemplateParams {
   contentSid: string;
   variables: Record<string, string>;
   category: 'marketing' | 'utility';
+  /** Credenciais da subconta do restaurante. Ausente = adapter usa as credenciais do .env (conta-mãe). */
+  twilioCredentials?: {
+    accountSid: string;
+    authToken: string;
+    from: string;
+  };
 }
 
 export interface SendTemplateResult {

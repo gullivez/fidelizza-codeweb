@@ -27,6 +27,8 @@ export default () => ({
       authToken: process.env.TWILIO_AUTH_TOKEN,
       from: process.env.TWILIO_WHATSAPP_FROM,
       statusWebhookSecret: process.env.TWILIO_STATUS_WEBHOOK_SECRET,
+      masterAccountSid: process.env.TWILIO_MASTER_ACCOUNT_SID,
+      masterAuthToken: process.env.TWILIO_MASTER_AUTH_TOKEN,
     },
   },
 
