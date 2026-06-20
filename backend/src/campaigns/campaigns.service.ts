@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -28,6 +29,8 @@ export interface EligibleTarget {
   name: string;
 }
 
+const MIN_SCHEDULE_DELAY_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class CampaignsService {
   constructor(
@@ -56,7 +59,7 @@ export class CampaignsService {
           ${sql.json(dto.templateVariables ?? {})}, ${dto.attributionWindowDays ?? 7}
         )
         RETURNING id, name, segment_name, template_name, content_sid, message_body,
-                  template_variables, status, total_targets, created_at, sent_at
+                  template_variables, status, total_targets, created_at, sent_at, scheduled_at
       `,
     );
 
@@ -70,7 +73,7 @@ export class CampaignsService {
       accountId,
       (sql) => sql`
         SELECT id, name, segment_name, template_name, content_sid, message_body,
-               template_variables, status, total_targets, created_at, sent_at
+               template_variables, status, total_targets, created_at, sent_at, scheduled_at
         FROM campaign
         WHERE restaurant_id = ${restaurantId} AND account_id = ${accountId}
         ORDER BY created_at DESC
@@ -91,6 +94,7 @@ export class CampaignsService {
       (sql) => sql`
         SELECT c.id, c.name, c.segment_name, c.template_name, c.content_sid, c.message_body,
                c.template_variables, c.status, c.total_targets, c.created_at, c.sent_at,
+               c.scheduled_at,
                COUNT(ml.id)::int AS total,
                COUNT(CASE WHEN ml.status = 'queued'    THEN 1 END)::int AS queued,
                COUNT(CASE WHEN ml.status = 'sent'       THEN 1 END)::int AS sent,
@@ -182,6 +186,7 @@ export class CampaignsService {
     id: string,
     restaurantId: string,
     idempotencyKey: string,
+    scheduledAt?: string,
   ): Promise<DispatchCampaignResponseDto> {
     const { accountId } = this.tenantContext.get();
     // BullMQ rejeita jobId com ":" a menos que tenha exatamente 3 segmentos — usa "-" para evitar a regra.
@@ -209,6 +214,39 @@ export class CampaignsService {
       throw new ConflictException(
         'Campanha já foi disparada ou não está em draft',
       );
+    }
+
+    if (scheduledAt) {
+      const scheduledDate = new Date(scheduledAt);
+      const delayMs = scheduledDate.getTime() - Date.now();
+
+      if (delayMs < MIN_SCHEDULE_DELAY_MS) {
+        throw new BadRequestException(
+          'O agendamento precisa ser pelo menos 5 minutos no futuro',
+        );
+      }
+
+      // Enfileira antes de mudar o status — se o enqueue falhar, a campanha continua em draft.
+      await this.queue.add(
+        'dispatch',
+        { campaignId: id, accountId, restaurantId },
+        { jobId, delay: delayMs },
+      );
+
+      await this.db.runInTenantContext(
+        accountId,
+        (sql) => sql`
+          UPDATE campaign
+          SET status = 'scheduled', scheduled_at = ${scheduledDate}, scheduled_job_id = ${jobId}
+          WHERE id = ${id} AND restaurant_id = ${restaurantId} AND account_id = ${accountId}
+        `,
+      );
+
+      return {
+        campaignId: id,
+        status: 'scheduled',
+        scheduledAt: scheduledDate.toISOString(),
+      };
     }
 
     const segmentName = campaignRows[0]['segment_name'] as string;
@@ -241,6 +279,42 @@ export class CampaignsService {
       status: 'sending',
       estimatedSeconds: Math.ceil(targets.length / rateLimitPerSec),
     };
+  }
+
+  async cancelSchedule(id: string, restaurantId: string): Promise<void> {
+    const { accountId } = this.tenantContext.get();
+
+    const rows = await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
+        SELECT status, scheduled_job_id FROM campaign
+        WHERE id = ${id} AND restaurant_id = ${restaurantId} AND account_id = ${accountId}
+      `,
+    );
+
+    if (!rows.length) {
+      throw new NotFoundException('Campanha não encontrada');
+    }
+    if (rows[0]['status'] !== 'scheduled') {
+      throw new ConflictException(
+        'Apenas campanhas agendadas podem ser canceladas',
+      );
+    }
+
+    const jobId = rows[0]['scheduled_job_id'] as string | null;
+    if (jobId) {
+      const job = await this.queue.getJob(jobId);
+      if (job) await job.remove();
+    }
+
+    await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
+        UPDATE campaign
+        SET status = 'draft', scheduled_at = NULL, scheduled_job_id = NULL
+        WHERE id = ${id} AND restaurant_id = ${restaurantId} AND account_id = ${accountId}
+      `,
+    );
   }
 
   async findEligibleTargets(
@@ -341,6 +415,7 @@ export class CampaignsService {
       totalTargets: row['total_targets'] as number,
       createdAt: row['created_at'] as Date,
       sentAt: (row['sent_at'] as Date | null) ?? null,
+      scheduledAt: (row['scheduled_at'] as Date | null) ?? null,
     };
   }
 }

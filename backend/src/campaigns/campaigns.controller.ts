@@ -24,7 +24,10 @@ import type {
   CampaignDetailResponseDto,
   CampaignPreviewResponseDto,
 } from './dto/campaign-response.dto';
-import type { DispatchCampaignResponseDto } from './dto/dispatch-campaign.dto';
+import {
+  DispatchCampaignDto,
+  type DispatchCampaignResponseDto,
+} from './dto/dispatch-campaign.dto';
 
 @ApiTags('Campaigns')
 @ApiBearerAuth()
@@ -72,16 +75,34 @@ export class CampaignsController {
 
   @Post(':id/dispatch')
   @HttpCode(202)
-  @ApiOperation({ summary: 'Enfileira o disparo da campanha' })
+  @ApiOperation({
+    summary: 'Enfileira o disparo da campanha (imediato ou agendado)',
+  })
   dispatch(
     @Param('restaurantId') restaurantId: string,
     @Param('id') id: string,
     @Headers('idempotency-key') idempotencyKey: string,
+    @Body() dto: DispatchCampaignDto,
   ): Promise<DispatchCampaignResponseDto> {
     if (!idempotencyKey) {
       throw new BadRequestException('Header Idempotency-Key é obrigatório');
     }
-    return this.campaignsService.dispatch(id, restaurantId, idempotencyKey);
+    return this.campaignsService.dispatch(
+      id,
+      restaurantId,
+      idempotencyKey,
+      dto.scheduledAt,
+    );
+  }
+
+  @Post(':id/cancel-schedule')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cancela uma campanha agendada' })
+  cancelSchedule(
+    @Param('restaurantId') restaurantId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.campaignsService.cancelSchedule(id, restaurantId);
   }
 
   @Delete(':id')

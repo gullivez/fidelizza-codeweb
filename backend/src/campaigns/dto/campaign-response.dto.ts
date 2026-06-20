@@ -13,6 +13,7 @@ export class CampaignResponseDto {
   @ApiProperty() totalTargets: number;
   @ApiProperty() createdAt: Date;
   @ApiPropertyOptional({ nullable: true }) sentAt: Date | null;
+  @ApiPropertyOptional({ nullable: true }) scheduledAt: Date | null;
 }
 
 export class CampaignFunnelDto {
