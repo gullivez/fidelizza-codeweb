@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -11,11 +11,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PREFS, TIMEZONES } from "@/lib/mock-settings";
-import { useRestaurantName } from "@/lib/hooks/use-restaurant-name";
 
 export function PreferenciasPanel() {
   const [tz, setTz] = useState(PREFS.timezone);
-  const { name, setName, saving, save, hasRestaurant } = useRestaurantName();
+  const [saving, setSaving] = useState(false);
+
+  const save = () => {
+    setSaving(true);
+    setTimeout(() => {
+      setSaving(false);
+      toast.success("Preferências salvas");
+    }, 800);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,26 +50,8 @@ export function PreferenciasPanel() {
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="rname">Nome do restaurante</Label>
-          <Input
-            id="rname"
-            className="max-w-md"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">
-            Aparece nas mensagens das campanhas no lugar da variável{" "}
-            <code className="rounded bg-zinc-100 px-1 py-0.5">{"{restaurante}"}</code>.
-          </p>
-        </div>
-
         <div className="flex justify-end">
-          <Button
-            onClick={save}
-            disabled={saving || !hasRestaurant}
-            className="bg-indigo-600 hover:bg-indigo-700"
-          >
+          <Button onClick={save} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar preferências
           </Button>
