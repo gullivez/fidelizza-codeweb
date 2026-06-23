@@ -18,6 +18,7 @@ import { DailyRfmScheduler } from '../segments/daily-rfm.scheduler';
 import { CampaignDispatchProcessor } from '../campaigns/campaign-dispatch.processor';
 import { RateLimiterService } from '../campaigns/rate-limiter.service';
 import { OrderConversionListener } from '../analytics/order-conversion.listener';
+import { AlertsModule } from '../common/alerts/alerts.module';
 import { QUEUE_NAMES } from './queue-names';
 
 @Module({
@@ -28,6 +29,7 @@ import { QUEUE_NAMES } from './queue-names';
     CustomersModule,
     OrdersModule,
     CampaignsModule,
+    AlertsModule,
     ...QUEUE_NAMES.filter((name) => name !== 'alerts.check').map((name) =>
       BullModule.registerQueue({ name }),
     ),
