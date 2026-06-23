@@ -27,6 +27,8 @@ jobs:
       JWT_SECRET: ci-secret-placeholder-must-be-32-chars-long
       JWT_REFRESH_SECRET: ci-refresh-secret-placeholder-32-chars
       AES_SECRET: ci-aes-secret-placeholder-must-be-32-characters
+      BULL_BOARD_USER: ci-bull-board-user
+      BULL_BOARD_PASSWORD: ci-bull-board-password-placeholder
 
     services:
       postgres:

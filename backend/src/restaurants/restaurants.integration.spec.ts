@@ -16,6 +16,7 @@ import postgres from 'postgres';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import request from 'supertest';
+import { Logger } from 'nestjs-pino';
 import { AllExceptionsFilter } from '../common/filters/all-exceptions.filter';
 import { AppModule } from '../app.module';
 
@@ -157,7 +158,7 @@ describe('Tenant Isolation — /restaurants', () => {
 
     // App conecta via DATABASE_URL (fidelizza_app, sem BYPASSRLS) — isso prova o isolamento
     app = await NestFactory.create(AppModule, { logger: false });
-    app.useGlobalFilters(new AllExceptionsFilter());
+    app.useGlobalFilters(new AllExceptionsFilter(app.get(Logger)));
     app.useGlobalPipes(
       new ValidationPipe({ whitelist: true, transform: true }),
     );
