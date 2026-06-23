@@ -84,7 +84,9 @@ export function CampaignsTable({ data, loading, restaurantId }: Props) {
       accessor: (r) => r.createdAt,
       cell: (r) => (
         <span className="text-sm text-muted-foreground tabular-nums">
-          {formatShortDate(r.createdAt)}
+          {r.status === "scheduled" && r.scheduledAt
+            ? formatShortDate(r.scheduledAt)
+            : formatShortDate(r.createdAt)}
         </span>
       ),
     },

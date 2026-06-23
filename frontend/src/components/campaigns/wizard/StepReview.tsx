@@ -1,21 +1,55 @@
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { formatNumber } from "@/lib/mock-dashboard";
+import { campaignsApi, type TemplateVariableMap } from "@/lib/api/campaigns";
+import { ScheduleToggle, type DispatchMode } from "@/components/campaigns/ScheduleToggle";
 
 type Props = {
+  restaurantId: string;
   name: string;
   segmentLabel: string;
   segmentCount: number;
   templateName: string;
+  attributionWindowDays: number;
+  templateVariables: TemplateVariableMap;
   hadConsentWarning: boolean;
+  dispatchMode: DispatchMode;
+  onDispatchModeChange: (mode: DispatchMode) => void;
+  scheduledAtLocal: string;
+  onScheduledAtLocalChange: (value: string) => void;
 };
 
 export function StepReview({
+  restaurantId,
   name,
   segmentLabel,
   segmentCount,
   templateName,
+  attributionWindowDays,
+  templateVariables,
   hadConsentWarning,
+  dispatchMode,
+  onDispatchModeChange,
+  scheduledAtLocal,
+  onScheduledAtLocalChange,
 }: Props) {
+  const variablesQuery = useQuery({
+    queryKey: ["variables", restaurantId],
+    queryFn: () => campaignsApi.listVariables(restaurantId),
+    enabled: !!restaurantId,
+  });
+  const variables = variablesQuery.data ?? [];
+
+  const variableRows = Object.entries(templateVariables)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([position, entry]) => {
+      if (entry.type === "dynamic") {
+        const label = variables.find((v) => v.key === entry.key)?.label ?? entry.key;
+        return `Variável ${position}: ${label} (automático)`;
+      }
+      return `Variável ${position}: ${entry.value || "—"} (fixo)`;
+    });
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -37,6 +71,16 @@ export function StepReview({
           </p>
         </Row>
         <Row label="Template">{templateName || "—"}</Row>
+        <Row label="Janela de atribuição">{attributionWindowDays} dias</Row>
+        {variableRows.length > 0 ? (
+          <Row label="Variáveis">
+            <ul className="flex flex-col gap-1">
+              {variableRows.map((row) => (
+                <li key={row}>{row}</li>
+              ))}
+            </ul>
+          </Row>
+        ) : null}
       </dl>
 
       {hadConsentWarning ? (
@@ -48,6 +92,13 @@ export function StepReview({
           </div>
         </div>
       ) : null}
+
+      <ScheduleToggle
+        dispatchMode={dispatchMode}
+        onDispatchModeChange={onDispatchModeChange}
+        scheduledAtLocal={scheduledAtLocal}
+        onScheduledAtLocalChange={onScheduledAtLocalChange}
+      />
     </div>
   );
 }

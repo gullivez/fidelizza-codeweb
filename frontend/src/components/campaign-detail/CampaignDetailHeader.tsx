@@ -2,13 +2,16 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampaignStatusBadge } from "@/components/campaigns/CampaignStatusBadge";
-import { formatLongDate, SEGMENT_LABELS } from "@/lib/campaign-format";
+import { formatDateTime, formatLongDate, SEGMENT_LABELS } from "@/lib/campaign-format";
 import type { ApiCampaignDetail } from "@/lib/api/campaigns";
 
 export function CampaignDetailHeader({ campaign }: { campaign: ApiCampaignDetail }) {
-  const dateLabel = campaign.sentAt
-    ? `Enviada em ${formatLongDate(campaign.sentAt)}`
-    : `Criada em ${formatLongDate(campaign.createdAt)}`;
+  const dateLabel =
+    campaign.status === "scheduled" && campaign.scheduledAt
+      ? `Agendada para ${formatDateTime(campaign.scheduledAt)}`
+      : campaign.sentAt
+        ? `Enviada em ${formatLongDate(campaign.sentAt)}`
+        : `Criada em ${formatLongDate(campaign.createdAt)}`;
 
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border pb-5 mb-6">

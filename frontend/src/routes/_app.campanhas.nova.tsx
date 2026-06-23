@@ -11,8 +11,15 @@ import { StepMessage } from "@/components/campaigns/wizard/StepMessage";
 import { StepReview } from "@/components/campaigns/wizard/StepReview";
 import { ConfirmDispatchDialog } from "@/components/campaigns/wizard/DispatchDialogs";
 import { useLayout } from "@/lib/layout-context";
+import { formatDateTime } from "@/lib/campaign-format";
 import { segmentsApi } from "@/lib/api/segments";
-import { campaignsApi, type CampaignPreviewResponse } from "@/lib/api/campaigns";
+import {
+  campaignsApi,
+  toBrtIso,
+  type CampaignPreviewResponse,
+  type TemplateVariableMap,
+  type TwilioTemplate,
+} from "@/lib/api/campaigns";
 import type { ApiError } from "@/lib/api-client";
 
 type WizardState = {
@@ -21,7 +28,7 @@ type WizardState = {
   templateName: string;
   contentSid: string;
   messageBody: string;
-  templateParams: Record<string, string>;
+  templateVariables: TemplateVariableMap;
   attributionWindowDays: number;
 };
 
@@ -33,7 +40,7 @@ const INITIAL_STATE: WizardState = {
   templateName: "",
   contentSid: "",
   messageBody: "",
-  templateParams: {},
+  templateVariables: {},
   attributionWindowDays: 7,
 };
 
@@ -55,6 +62,8 @@ function NovaCampanhaPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [previewResult, setPreviewResult] = useState<CampaignPreviewResponse | null>(null);
   const [previewNoEligible, setPreviewNoEligible] = useState(false);
+  const [dispatchMode, setDispatchMode] = useState<"now" | "schedule">("now");
+  const [scheduledAtLocal, setScheduledAtLocal] = useState("");
 
   const segmentsQuery = useQuery({
     queryKey: ["segments", rid],
@@ -71,7 +80,7 @@ function NovaCampanhaPage() {
         templateName: state.templateName,
         contentSid: state.contentSid,
         messageBody: state.messageBody,
-        templateParams: state.templateParams,
+        templateVariables: state.templateVariables,
         attributionWindowDays: state.attributionWindowDays,
       }),
     onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao criar campanha"),
@@ -95,13 +104,25 @@ function NovaCampanhaPage() {
   });
 
   const dispatchMutation = useMutation({
-    mutationFn: () => campaignsApi.dispatch(rid, campaignId!, crypto.randomUUID()),
+    mutationFn: () =>
+      campaignsApi.dispatch(
+        rid,
+        campaignId!,
+        crypto.randomUUID(),
+        dispatchMode === "schedule" ? toBrtIso(scheduledAtLocal) : undefined,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", rid] });
       navigate({ to: "/campanhas/$campaignId", params: { campaignId: campaignId! } });
     },
-    onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "Falha ao disparar campanha"),
+    onError: (err) => {
+      const apiErr = err as ApiError;
+      if (apiErr.status === 400) {
+        toast.error("Escolha um horário com pelo menos 5 minutos de antecedência.");
+        return;
+      }
+      toast.error(err instanceof Error ? err.message : "Falha ao disparar campanha");
+    },
   });
 
   const hasPreviewed = previewResult !== null || previewNoEligible;
@@ -114,10 +135,27 @@ function NovaCampanhaPage() {
           state.contentSid.trim().length > 0 &&
           state.messageBody.trim().length > 0 &&
           hasPreviewed
-        : true;
+        : dispatchMode === "schedule"
+          ? scheduledAtLocal.trim().length > 0
+          : true;
 
   const update = <K extends keyof WizardState>(k: K, v: WizardState[K]) =>
     setState((s) => ({ ...s, [k]: v }));
+
+  const handleTemplateSelect = (template: TwilioTemplate) => {
+    setState((s) => ({
+      ...s,
+      templateName: template.friendlyName,
+      contentSid: template.contentSid,
+      messageBody: template.body,
+      templateVariables: Object.fromEntries(
+        Array.from({ length: template.variableCount }, (_, i) => [
+          String(i + 1),
+          { type: "static" as const, value: "" },
+        ]),
+      ),
+    }));
+  };
 
   const handlePreview = async () => {
     const isStale =
@@ -129,7 +167,7 @@ function NovaCampanhaPage() {
       createdSnapshot.contentSid !== state.contentSid ||
       createdSnapshot.messageBody !== state.messageBody ||
       createdSnapshot.attributionWindowDays !== state.attributionWindowDays ||
-      JSON.stringify(createdSnapshot.templateParams) !== JSON.stringify(state.templateParams);
+      JSON.stringify(createdSnapshot.templateVariables) !== JSON.stringify(state.templateVariables);
 
     let id = campaignId;
 
@@ -201,14 +239,12 @@ function NovaCampanhaPage() {
         )}
         {step === 2 && (
           <StepMessage
-            templateName={state.templateName}
-            onTemplateNameChange={(v) => update("templateName", v)}
-            contentSid={state.contentSid}
-            onContentSidChange={(v) => update("contentSid", v)}
-            templateParams={state.templateParams}
-            onTemplateParamsChange={(v) => update("templateParams", v)}
+            restaurantId={rid}
+            selectedContentSid={state.contentSid}
+            onTemplateSelect={handleTemplateSelect}
+            templateVariables={state.templateVariables}
+            onTemplateVariablesChange={(v) => update("templateVariables", v)}
             messageBody={state.messageBody}
-            onMessageBodyChange={(v) => update("messageBody", v)}
             attributionWindowDays={state.attributionWindowDays}
             onAttributionWindowDaysChange={(n) => update("attributionWindowDays", n)}
             onPreview={handlePreview}
@@ -219,11 +255,18 @@ function NovaCampanhaPage() {
         )}
         {step === 3 && (
           <StepReview
+            restaurantId={rid}
             name={state.name}
             segmentLabel={selectedSegment?.label ?? state.segmentName ?? "—"}
             segmentCount={selectedSegment?.count ?? 0}
             templateName={state.templateName}
+            attributionWindowDays={state.attributionWindowDays}
+            templateVariables={state.templateVariables}
             hadConsentWarning={previewNoEligible}
+            dispatchMode={dispatchMode}
+            onDispatchModeChange={setDispatchMode}
+            scheduledAtLocal={scheduledAtLocal}
+            onScheduledAtLocalChange={setScheduledAtLocal}
           />
         )}
 
@@ -231,8 +274,13 @@ function NovaCampanhaPage() {
           step={step}
           canContinue={canContinue}
           loading={dispatchMutation.isPending}
+          nextLabel={step === 3 && dispatchMode === "schedule" ? "Agendar campanha" : undefined}
           disabledReason={
-            step === 2 && !hasPreviewed ? "Pré-visualize a mensagem antes de continuar." : undefined
+            step === 2 && !hasPreviewed
+              ? "Pré-visualize a mensagem antes de continuar."
+              : step === 3 && dispatchMode === "schedule" && !scheduledAtLocal.trim()
+                ? "Escolha um horário antes de agendar."
+                : undefined
           }
           onBack={handleBack}
           onNext={handleNext}
@@ -244,6 +292,8 @@ function NovaCampanhaPage() {
         onOpenChange={setConfirmOpen}
         count={selectedSegment?.count ?? 0}
         onConfirm={handleConfirm}
+        scheduled={dispatchMode === "schedule"}
+        scheduledAtLabel={scheduledAtLocal ? formatDateTime(toBrtIso(scheduledAtLocal)) : undefined}
       />
     </>
   );

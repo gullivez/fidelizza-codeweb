@@ -10,9 +10,14 @@ import { SendingProgressBlock } from "@/components/campaign-detail/SendingProgre
 import { FailedAlert } from "@/components/campaign-detail/FailedAlert";
 import { PerformanceFunnel, type FunnelStep } from "@/components/campaign-detail/PerformanceFunnel";
 import { TemplateBlock } from "@/components/campaign-detail/TemplateBlock";
-import { ConfirmDispatchDialog } from "@/components/campaigns/wizard/DispatchDialogs";
+import {
+  CancelScheduleDialog,
+  ConfirmDispatchDialog,
+} from "@/components/campaigns/wizard/DispatchDialogs";
+import { ScheduleToggle, type DispatchMode } from "@/components/campaigns/ScheduleToggle";
 import { useLayout } from "@/lib/layout-context";
-import { campaignsApi, type ApiCampaignDetail } from "@/lib/api/campaigns";
+import { formatDateTime } from "@/lib/campaign-format";
+import { campaignsApi, toBrtIso, type ApiCampaignDetail } from "@/lib/api/campaigns";
 import type { ApiError } from "@/lib/api-client";
 
 export const Route = createFileRoute("/_app/campanhas/$campaignId")({
@@ -60,6 +65,9 @@ function CampaignDetailPage() {
   const rid = activeRestaurant?.id ?? "";
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [cancelScheduleOpen, setCancelScheduleOpen] = useState(false);
+  const [dispatchMode, setDispatchMode] = useState<DispatchMode>("now");
+  const [scheduledAtLocal, setScheduledAtLocal] = useState("");
 
   const {
     data: campaign,
@@ -70,16 +78,45 @@ function CampaignDetailPage() {
     queryKey: ["campaign", rid, campaignId],
     queryFn: () => campaignsApi.get(rid, campaignId),
     enabled: !!rid,
-    refetchInterval: (query) => (query.state.data?.status === "sending" ? 5000 : false),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "sending") return 5000;
+      if (status === "scheduled") return 30000;
+      return false;
+    },
   });
 
   const dispatchMutation = useMutation({
-    mutationFn: () => campaignsApi.dispatch(rid, campaignId, crypto.randomUUID()),
+    mutationFn: () =>
+      campaignsApi.dispatch(
+        rid,
+        campaignId,
+        crypto.randomUUID(),
+        dispatchMode === "schedule" ? toBrtIso(scheduledAtLocal) : undefined,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["campaign", rid, campaignId] });
     },
+    onError: (err) => {
+      const apiErr = err as ApiError;
+      if (apiErr.status === 400) {
+        toast.error("Escolha um horário com pelo menos 5 minutos de antecedência.");
+        return;
+      }
+      toast.error(err instanceof Error ? err.message : "Falha ao disparar campanha");
+    },
+  });
+
+  const cancelScheduleMutation = useMutation({
+    mutationFn: () => campaignsApi.cancelSchedule(rid, campaignId),
+    onSuccess: () => {
+      toast.success("Agendamento cancelado.");
+      setDispatchMode("now");
+      setScheduledAtLocal("");
+      queryClient.invalidateQueries({ queryKey: ["campaign", rid, campaignId] });
+    },
     onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "Falha ao disparar campanha"),
+      toast.error(err instanceof Error ? err.message : "Falha ao cancelar agendamento"),
   });
 
   if (!isLoading && !campaign) {
@@ -134,13 +171,37 @@ function CampaignDetailPage() {
           <TemplateBlock templateName={campaign.templateName} contentSid={campaign.contentSid} />
 
           {campaign.status === "draft" ? (
+            <div className="flex flex-col gap-4">
+              <ScheduleToggle
+                dispatchMode={dispatchMode}
+                onDispatchModeChange={setDispatchMode}
+                scheduledAtLocal={scheduledAtLocal}
+                onScheduledAtLocalChange={setScheduledAtLocal}
+              />
+              <div>
+                <Button
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={
+                    dispatchMutation.isPending ||
+                    (dispatchMode === "schedule" && !scheduledAtLocal.trim())
+                  }
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  {dispatchMode === "schedule" ? "Agendar campanha" : "Disparar campanha"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {campaign.status === "scheduled" ? (
             <div>
               <Button
-                onClick={() => setConfirmOpen(true)}
-                disabled={dispatchMutation.isPending}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                variant="outline"
+                onClick={() => setCancelScheduleOpen(true)}
+                disabled={cancelScheduleMutation.isPending}
+                className="text-rose-700 border-rose-200 hover:bg-rose-50"
               >
-                Disparar campanha
+                Cancelar agendamento
               </Button>
             </div>
           ) : null}
@@ -154,6 +215,17 @@ function CampaignDetailPage() {
         onConfirm={() => {
           setConfirmOpen(false);
           dispatchMutation.mutate();
+        }}
+        scheduled={dispatchMode === "schedule"}
+        scheduledAtLabel={scheduledAtLocal ? formatDateTime(toBrtIso(scheduledAtLocal)) : undefined}
+      />
+
+      <CancelScheduleDialog
+        open={cancelScheduleOpen}
+        onOpenChange={setCancelScheduleOpen}
+        onConfirm={() => {
+          setCancelScheduleOpen(false);
+          cancelScheduleMutation.mutate();
         }}
       />
     </>

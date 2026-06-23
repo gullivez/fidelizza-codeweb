@@ -1,4 +1,12 @@
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { formatBRL, type RevenuePoint } from "@/lib/mock-dashboard";
 
 type Props = { data: RevenuePoint[] };
@@ -7,10 +15,10 @@ export function RevenueChart({ data }: Props) {
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">
-          Receita gerada por campanhas
-        </h3>
-        <span className="text-xs text-muted-foreground">Atribuída por janela de 7 dias</span>
+        <h3 className="text-sm font-semibold text-foreground">Receita gerada por campanhas</h3>
+        {data.length > 0 && (
+          <span className="text-xs text-muted-foreground">Atribuída por janela de 7 dias</span>
+        )}
       </div>
       <div className="h-[280px] -mx-2">
         <ResponsiveContainer width="100%" height="100%">

@@ -5,7 +5,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLayout } from "@/lib/layout-context";
-import { dashboardByPeriod, type Period } from "@/lib/mock-dashboard";
+import { useAnalytics } from "@/hooks/use-analytics";
+import type { AnalyticsPeriod } from "@/lib/api/analytics";
 import { PeriodToggle } from "@/components/dashboard/PeriodToggle";
 import { ImpactStrip } from "@/components/dashboard/ImpactStrip";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
@@ -13,7 +14,6 @@ import { RFMBar } from "@/components/dashboard/RFMBar";
 import { CampaignFunnel } from "@/components/dashboard/CampaignFunnel";
 import { OpportunitiesTable } from "@/components/dashboard/OpportunitiesTable";
 import { NeverSentCTA } from "@/components/dashboard/NeverSentCTA";
-import { DashboardEmptyImporting } from "@/components/dashboard/DashboardEmptyImporting";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({
@@ -25,14 +25,10 @@ export const Route = createFileRoute("/_app/")({
   component: DashboardPage,
 });
 
-type ViewState = "populated" | "loading" | "importing" | "never-sent";
-
 function DashboardPage() {
   const { activeRestaurant } = useLayout();
-  const [period, setPeriod] = useState<Period>("30d");
-  // QA toggle (default populated). Change to "loading" / "importing" / "never-sent" to preview.
-  const [viewState] = useState<ViewState>("populated");
-  const data = dashboardByPeriod[period];
+  const [period, setPeriod] = useState<AnalyticsPeriod>("30d");
+  const { dashboard, rfm, loading } = useAnalytics(activeRestaurant?.id, period);
 
   const actions = (
     <>
@@ -44,34 +40,35 @@ function DashboardPage() {
     </>
   );
 
+  const ready = !loading && dashboard && rfm;
+  const neverSent = ready && dashboard.kpis.campaignsSent === 0;
+
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        subtitle={activeRestaurant?.name ?? ""}
-        action={actions}
-      />
+      <PageHeader title="Dashboard" subtitle={activeRestaurant?.name ?? ""} action={actions} />
 
-      {viewState === "importing" ? (
-        <DashboardEmptyImporting progress={42} />
-      ) : viewState === "loading" ? (
+      {!ready ? (
         <LoadingShell />
+      ) : neverSent ? (
+        <NeverSentCTA inactiveCount={rfm.inactive} />
       ) : (
         <div className="space-y-5">
-          {viewState === "never-sent" ? (
-            <NeverSentCTA inactiveCount={data.rfm.inactive} />
-          ) : (
-            <ImpactStrip data={data.kpis} />
-          )}
+          <ImpactStrip data={dashboard.kpis} />
 
-          <RevenueChart data={data.revenueSeries} />
+          <RevenueChart data={[]} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <RFMBar data={data.rfm} />
-            <CampaignFunnel data={data.lastCampaign} />
+            <RFMBar data={rfm} />
+            {dashboard.lastCampaign ? (
+              <CampaignFunnel data={dashboard.lastCampaign} />
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-5 flex items-center justify-center text-sm text-muted-foreground h-full">
+                Nenhuma campanha enviada ainda.
+              </div>
+            )}
           </div>
 
-          <OpportunitiesTable data={data.opportunities} />
+          <OpportunitiesTable data={[]} />
         </div>
       )}
     </>

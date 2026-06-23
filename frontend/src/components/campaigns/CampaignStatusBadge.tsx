@@ -10,6 +10,11 @@ const config: Record<
     classes: "bg-zinc-100 text-zinc-700 border-zinc-200",
     dot: "bg-zinc-400",
   },
+  scheduled: {
+    label: "Agendada",
+    classes: "bg-amber-50 text-amber-800 border-amber-200",
+    dot: "bg-amber-500",
+  },
   sending: {
     label: "Enviando",
     classes: "bg-amber-50 text-amber-800 border-amber-200",

@@ -19,3 +19,19 @@ export function formatLongDate(iso: string) {
     year: "numeric",
   });
 }
+
+/** Sempre em horário de Brasília, independente do fuso da máquina do usuário. */
+export function formatDateTime(iso: string) {
+  const date = new Date(iso);
+  const datePart = date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    timeZone: "America/Sao_Paulo",
+  });
+  const timePart = date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
+  return `${datePart} às ${timePart}`;
+}

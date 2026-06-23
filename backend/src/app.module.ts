@@ -25,6 +25,7 @@ import { OrdersModule } from './orders/orders.module';
 import { SegmentsModule } from './segments/segments.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
@@ -69,6 +70,7 @@ import { TenantContextService } from './tenant/tenant-context.service';
     SegmentsModule,
     MessagingModule,
     CampaignsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

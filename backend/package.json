@@ -20,7 +20,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:integration": "jest --config jest.config.js --testPathPattern=integration",
-    "migrate": "ts-node -r tsconfig-paths/register src/database/migrate.ts"
+    "migrate": "ts-node -r tsconfig-paths/register src/database/migrate.ts",
+    "backfill:conversions": "ts-node -r tsconfig-paths/register src/database/seeds/backfill-conversions.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",

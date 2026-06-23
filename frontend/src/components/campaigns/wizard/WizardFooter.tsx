@@ -8,6 +8,7 @@ type Props = {
   canContinue: boolean;
   loading?: boolean;
   disabledReason?: string;
+  nextLabel?: string;
   onBack: () => void;
   onNext: () => void;
 };
@@ -17,6 +18,7 @@ export function WizardFooter({
   canContinue,
   loading,
   disabledReason,
+  nextLabel,
   onBack,
   onNext,
 }: Props) {
@@ -32,7 +34,7 @@ export function WizardFooter({
       {isLast ? (
         <>
           <Send className="h-4 w-4" />
-          Disparar campanha
+          {nextLabel ?? "Disparar campanha"}
         </>
       ) : (
         "Continuar"

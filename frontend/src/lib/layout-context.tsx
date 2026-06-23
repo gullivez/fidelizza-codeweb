@@ -1,6 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type { ApiRestaurant, AuthUser } from "./api-types";
 import { consumeAuthData } from "./auth-store";
+import { getWhatsappStatus } from "./api/analytics";
 
 type LayoutContextValue = {
   restaurants: ApiRestaurant[];
@@ -25,9 +34,28 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     const { user, restaurants } = consumeAuthData();
     if (user) setCurrentUser(user);
     if (restaurants.length) setRestaurants(restaurants);
-  // Roda uma única vez ao montar — consumeAuthData() limpa o store após leitura
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Roda uma única vez ao montar — consumeAuthData() limpa o store após leitura
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!activeRestaurant) return;
+    let cancelled = false;
+
+    getWhatsappStatus(activeRestaurant.id)
+      .then((status) => {
+        if (cancelled) return;
+        setWhatsappConnected(status.healthy);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setWhatsappConnected(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRestaurant]);
 
   const setRestaurants = useCallback((list: ApiRestaurant[]) => {
     setRestaurantsState(list);
