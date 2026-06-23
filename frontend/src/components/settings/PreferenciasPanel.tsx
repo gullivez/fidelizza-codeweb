@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,35 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PREFS, TIMEZONES } from "@/lib/mock-settings";
-import { useLayout } from "@/lib/layout-context";
-import { updateRestaurant as updateRestaurantApi } from "@/lib/api/restaurants";
+import { useRestaurantName } from "@/lib/hooks/use-restaurant-name";
 
 export function PreferenciasPanel() {
-  const { activeRestaurant, updateRestaurant } = useLayout();
   const [tz, setTz] = useState(PREFS.timezone);
-  const [name, setName] = useState(activeRestaurant?.name ?? "");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setName(activeRestaurant?.name ?? "");
-  }, [activeRestaurant?.id, activeRestaurant?.name]);
-
-  const save = async () => {
-    if (!activeRestaurant) return;
-    const previousName = activeRestaurant.name;
-    setSaving(true);
-    try {
-      const updated = await updateRestaurantApi(activeRestaurant.id, { name });
-      updateRestaurant(updated);
-      setName(updated.name);
-      toast.success("Preferências salvas");
-    } catch {
-      setName(previousName);
-      toast.error("Não foi possível salvar as preferências");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const { name, setName, saving, save, hasRestaurant } = useRestaurantName();
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,7 +60,7 @@ export function PreferenciasPanel() {
         <div className="flex justify-end">
           <Button
             onClick={save}
-            disabled={saving || !activeRestaurant}
+            disabled={saving || !hasRestaurant}
             className="bg-indigo-600 hover:bg-indigo-700"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}

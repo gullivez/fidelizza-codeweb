@@ -1,26 +1,15 @@
-import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ACCOUNT, type BillingStatus } from "@/lib/mock-settings";
+import { useRestaurantName } from "@/lib/hooks/use-restaurant-name";
 
 export function ContaPanel({ billingOverride }: { billingOverride?: BillingStatus }) {
   const billing = billingOverride ?? ACCOUNT.billingStatus;
-  const [empresa, setEmpresa] = useState(ACCOUNT.empresa);
-  const [cnpj, setCnpj] = useState(ACCOUNT.cnpj);
-  const [saving, setSaving] = useState(false);
-
-  const save = () => {
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      toast.success("Dados da empresa salvos");
-    }, 800);
-  };
+  const { name, setName, saving, save, hasRestaurant } = useRestaurantName();
 
   const billingBadge =
     billing === "active" ? (
@@ -43,17 +32,33 @@ export function ContaPanel({ billingOverride }: { billingOverride?: BillingStatu
       <section className="rounded-lg border border-border bg-card p-5">
         <h3 className="text-sm font-semibold text-foreground">Dados da empresa</h3>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="nome-exibicao">Nome de exibição</Label>
+            <Input
+              id="nome-exibicao"
+              className="max-w-md"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Aparece no seletor de restaurantes e nas mensagens das campanhas.
+            </p>
+          </div>
           <div className="space-y-2">
-            <Label htmlFor="empresa">Razão social</Label>
-            <Input id="empresa" value={empresa} onChange={(e) => setEmpresa(e.target.value)} />
+            <Label htmlFor="razao-social">Razão social</Label>
+            <Input id="razao-social" value="Em breve" disabled />
           </div>
           <div className="space-y-2">
             <Label htmlFor="cnpj">CNPJ</Label>
-            <Input id="cnpj" value={cnpj} onChange={(e) => setCnpj(e.target.value)} />
+            <Input id="cnpj" value="Em breve" disabled />
           </div>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button onClick={save} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button
+            onClick={save}
+            disabled={saving || !hasRestaurant}
+            className="bg-indigo-600 hover:bg-indigo-700"
+          >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar
           </Button>
@@ -66,14 +71,15 @@ export function ContaPanel({ billingOverride }: { billingOverride?: BillingStatu
             <h3 className="text-sm font-semibold text-foreground">Plano & Assinatura</h3>
             {billingBadge}
           </div>
-          <Button variant="outline" size="sm">Gerenciar assinatura</Button>
+          <Button variant="outline" size="sm">
+            Gerenciar assinatura
+          </Button>
         </div>
 
         {billing === "past_due" && (
           <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <strong className="font-semibold">Pagamento pendente.</strong>{" "}
-            Regularize para evitar suspensão.{" "}
-            <button className="font-medium underline">Atualizar pagamento</button>
+            <strong className="font-semibold">Pagamento pendente.</strong> Regularize para evitar
+            suspensão. <button className="font-medium underline">Atualizar pagamento</button>
           </div>
         )}
 
@@ -104,7 +110,9 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
     <div>
       <div className="flex items-center justify-between text-sm">
         <span className="text-foreground">{label}</span>
-        <span className="tabular-nums text-muted-foreground">{used}/{limit}</span>
+        <span className="tabular-nums text-muted-foreground">
+          {used}/{limit}
+        </span>
       </div>
       <Progress value={pct} className="mt-2 h-1.5" />
     </div>
