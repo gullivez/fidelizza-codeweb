@@ -16,6 +16,7 @@ type LayoutContextValue = {
   activeRestaurant: ApiRestaurant | null;
   setActiveRestaurant: (r: ApiRestaurant) => void;
   setRestaurants: (list: ApiRestaurant[]) => void;
+  updateRestaurant: (updated: ApiRestaurant) => void;
   currentUser: AuthUser | null;
   setCurrentUser: (user: AuthUser) => void;
   whatsappConnected: boolean;
@@ -68,18 +69,31 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateRestaurant = useCallback((updated: ApiRestaurant) => {
+    setRestaurantsState((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    setActiveRestaurant((prev) => (prev?.id === updated.id ? updated : prev));
+  }, []);
+
   const value = useMemo<LayoutContextValue>(
     () => ({
       restaurants,
       activeRestaurant,
       setActiveRestaurant,
       setRestaurants,
+      updateRestaurant,
       currentUser,
       setCurrentUser,
       whatsappConnected,
       setWhatsappConnected,
     }),
-    [restaurants, activeRestaurant, setRestaurants, currentUser, whatsappConnected],
+    [
+      restaurants,
+      activeRestaurant,
+      setRestaurants,
+      updateRestaurant,
+      currentUser,
+      whatsappConnected,
+    ],
   );
 
   return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>;

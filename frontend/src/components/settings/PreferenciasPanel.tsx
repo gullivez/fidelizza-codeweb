@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,18 +12,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PREFS, TIMEZONES } from "@/lib/mock-settings";
+import { useLayout } from "@/lib/layout-context";
+import { updateRestaurant as updateRestaurantApi } from "@/lib/api/restaurants";
 
 export function PreferenciasPanel() {
+  const { activeRestaurant, updateRestaurant } = useLayout();
   const [tz, setTz] = useState(PREFS.timezone);
-  const [name, setName] = useState(PREFS.restaurantName);
+  const [name, setName] = useState(activeRestaurant?.name ?? "");
   const [saving, setSaving] = useState(false);
 
-  const save = () => {
+  useEffect(() => {
+    setName(activeRestaurant?.name ?? "");
+  }, [activeRestaurant?.id, activeRestaurant?.name]);
+
+  const save = async () => {
+    if (!activeRestaurant) return;
+    const previousName = activeRestaurant.name;
     setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      const updated = await updateRestaurantApi(activeRestaurant.id, { name });
+      updateRestaurant(updated);
+      setName(updated.name);
       toast.success("Preferências salvas");
-    }, 800);
+    } catch {
+      setName(previousName);
+      toast.error("Não foi possível salvar as preferências");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -39,10 +55,14 @@ export function PreferenciasPanel() {
         <div className="space-y-2">
           <Label>Fuso horário</Label>
           <Select value={tz} onValueChange={setTz}>
-            <SelectTrigger className="max-w-md"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="max-w-md">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {TIMEZONES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -63,7 +83,11 @@ export function PreferenciasPanel() {
         </div>
 
         <div className="flex justify-end">
-          <Button onClick={save} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button
+            onClick={save}
+            disabled={saving || !activeRestaurant}
+            className="bg-indigo-600 hover:bg-indigo-700"
+          >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar preferências
           </Button>
