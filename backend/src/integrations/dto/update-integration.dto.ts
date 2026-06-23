@@ -1,7 +1,27 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  ValidateNested,
+} from 'class-validator';
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export class UpdateIntegrationCredentialsDto {
+  @ApiProperty({ example: 'my-client-id' })
+  @IsString()
+  @IsNotEmpty()
+  clientId: string;
+
+  @ApiProperty({ example: 'my-client-secret' })
+  @IsString()
+  @IsNotEmpty()
+  clientSecret: string;
+}
 
 export class UpdateIntegrationDto {
   @ApiPropertyOptional({
@@ -27,4 +47,14 @@ export class UpdateIntegrationDto {
   @IsOptional()
   @IsIn(['active', 'inactive'])
   status?: 'active' | 'inactive';
+
+  @ApiPropertyOptional({
+    type: UpdateIntegrationCredentialsDto,
+    description:
+      'Substitui as credenciais (clientId + clientSecret juntos). Omitir para manter as atuais.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateIntegrationCredentialsDto)
+  credentials?: UpdateIntegrationCredentialsDto;
 }

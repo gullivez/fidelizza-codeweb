@@ -24,6 +24,11 @@ export interface UpdateIntegrationPayload {
   syncTime1?: string;
   syncTime2?: string | null;
   status?: "active" | "inactive";
+  /** Substitui o par inteiro (clientId + clientSecret) — omitir para manter as atuais. */
+  credentials?: {
+    clientId: string;
+    clientSecret: string;
+  };
 }
 
 export const integrationsApi = {

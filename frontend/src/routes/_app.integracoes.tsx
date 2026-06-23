@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
@@ -9,7 +9,13 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useLayout } from "@/lib/layout-context";
 import { integrationsApi } from "@/lib/api/integrations";
 import type { ApiIntegration } from "@/lib/api/integrations";
@@ -38,7 +44,8 @@ function IntegracoesPage() {
       toast.success("Sincronização iniciada com sucesso!");
       setTimeout(() => queryClient.invalidateQueries({ queryKey: ["integrations", rid] }), 3000);
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Falha ao iniciar sincronização"),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Falha ao iniciar sincronização"),
   });
 
   if (isLoading) {
@@ -57,7 +64,10 @@ function IntegracoesPage() {
       <PageHeader title="Integrações" subtitle="Conecte a fonte de dados do seu restaurante." />
       <div className="mx-auto max-w-2xl space-y-6">
         {!integration ? (
-          <ConnectForm restaurantId={rid} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["integrations", rid] })} />
+          <ConnectForm
+            restaurantId={rid}
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["integrations", rid] })}
+          />
         ) : (
           <IntegrationCard
             integration={integration}
@@ -100,7 +110,9 @@ function ConnectForm({ restaurantId, onSuccess }: { restaurantId: string; onSucc
         </div>
         <div>
           <h2 className="font-semibold text-foreground">Conectar Anota.ai</h2>
-          <p className="text-sm text-muted-foreground">Informe suas credenciais para importar pedidos</p>
+          <p className="text-sm text-muted-foreground">
+            Informe suas credenciais para importar pedidos
+          </p>
         </div>
       </div>
 
@@ -192,7 +204,7 @@ function IntegrationCard({
 
           <div className="flex gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              Editar horário
+              Editar
             </Button>
             <Button size="sm" onClick={onSync} disabled={syncing}>
               <RefreshCw className={`h-4 w-4 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
@@ -203,38 +215,48 @@ function IntegrationCard({
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Sync diário</div>
-            <div className="font-medium">{integration.syncTime1} UTC{integration.syncTime2 ? ` · ${integration.syncTime2} UTC` : ""}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">
+              Sync diário
+            </div>
+            <div className="font-medium">
+              {integration.syncTime1} UTC
+              {integration.syncTime2 ? ` · ${integration.syncTime2} UTC` : ""}
+            </div>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Última sync</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">
+              Última sync
+            </div>
             <div className="font-medium">
               {integration.lastSyncAt
-                ? formatDistanceToNow(new Date(integration.lastSyncAt), { addSuffix: true, locale: ptBR })
+                ? formatDistanceToNow(new Date(integration.lastSyncAt), {
+                    addSuffix: true,
+                    locale: ptBR,
+                  })
                 : "Nunca"}
             </div>
           </div>
           {integration.lastError && (
             <div className="col-span-2">
-              <div className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Último erro</div>
-              <div className="text-sm text-destructive font-mono truncate">{integration.lastError}</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">
+                Último erro
+              </div>
+              <div className="text-sm text-destructive font-mono truncate">
+                {integration.lastError}
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      <EditScheduleDialog
-        integration={integration}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
+      <EditIntegrationDialog integration={integration} open={editOpen} onOpenChange={setEditOpen} />
     </>
   );
 }
 
-// ── Edit schedule dialog ──────────────────────────────────────────────────────
+// ── Edit integration dialog ───────────────────────────────────────────────────
 
-function EditScheduleDialog({
+function EditIntegrationDialog({
   integration,
   open,
   onOpenChange,
@@ -245,46 +267,101 @@ function EditScheduleDialog({
 }) {
   const [syncTime1, setSyncTime1] = useState(integration.syncTime1);
   const [syncTime2, setSyncTime2] = useState(integration.syncTime2 ?? "");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const queryClient = useQueryClient();
+
+  // Sempre reseta ao reabrir — campos de credencial nunca carregam valor antigo.
+  useEffect(() => {
+    if (!open) return;
+    setSyncTime1(integration.syncTime1);
+    setSyncTime2(integration.syncTime2 ?? "");
+    setClientId("");
+    setClientSecret("");
+  }, [open, integration.syncTime1, integration.syncTime2]);
+
+  const credentialsPartiallyFilled = Boolean(clientId) !== Boolean(clientSecret);
 
   const updateMutation = useMutation({
     mutationFn: () =>
       integrationsApi.update(integration.restaurantId, integration.id, {
         syncTime1,
         syncTime2: syncTime2 || null,
+        ...(clientId && clientSecret ? { credentials: { clientId, clientSecret } } : {}),
       }),
     onSuccess: () => {
-      toast.success("Horário atualizado!");
+      toast.success("Integração atualizada");
       queryClient.invalidateQueries({ queryKey: ["integrations", integration.restaurantId] });
       onOpenChange(false);
     },
-    onError: () => toast.error("Falha ao atualizar horário"),
+    onError: () => toast.error("Falha ao atualizar integração"),
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar horário de sincronização</DialogTitle>
+          <DialogTitle>Editar integração</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 py-2">
-          <div className="space-y-1">
-            <Label>Sincronização 1 (UTC)</Label>
-            <Input type="time" value={syncTime1} onChange={(e) => setSyncTime1(e.target.value)} />
+        <div className="space-y-4 py-2">
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Sincronização 1 (UTC)</Label>
+              <Input type="time" value={syncTime1} onChange={(e) => setSyncTime1(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Sincronização 2 (UTC) — opcional</Label>
+              <Input
+                type="time"
+                value={syncTime2}
+                onChange={(e) => setSyncTime2(e.target.value)}
+                placeholder="Deixe em branco para desativar"
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label>Sincronização 2 (UTC) — opcional</Label>
-            <Input
-              type="time"
-              value={syncTime2}
-              onChange={(e) => setSyncTime2(e.target.value)}
-              placeholder="Deixe em branco para desativar"
-            />
+
+          <div className="space-y-3 border-t border-border pt-4">
+            <Label className="text-sm font-medium text-foreground">
+              Atualizar credenciais (deixe em branco para manter as atuais)
+            </Label>
+            <div className="space-y-1">
+              <Label htmlFor="edit-clientId" className="text-xs text-muted-foreground">
+                Client ID
+              </Label>
+              <Input
+                id="edit-clientId"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder="Deixe em branco para não alterar"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-clientSecret" className="text-xs text-muted-foreground">
+                Client Secret / Token
+              </Label>
+              <Input
+                id="edit-clientSecret"
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                placeholder="Deixe em branco para não alterar"
+              />
+            </div>
+            {credentialsPartiallyFilled && (
+              <p className="text-xs text-destructive">
+                Preencha os dois campos para atualizar as credenciais, ou deixe ambos em branco.
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => updateMutation.mutate()}
+            disabled={updateMutation.isPending || credentialsPartiallyFilled}
+          >
             {updateMutation.isPending ? "Salvando…" : "Salvar"}
           </Button>
         </DialogFooter>

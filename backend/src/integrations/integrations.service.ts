@@ -139,6 +139,19 @@ export class IntegrationsService {
     dto: UpdateIntegrationDto,
   ): Promise<IntegrationResponseDto> {
     const { accountId } = this.tenantContext.get();
+
+    // credentials substitui o par inteiro (clientId + clientSecret) — nunca
+    // mescla com o valor antigo, então não precisa descriptografar o atual
+    // (importante: evita falhar caso o credentials_enc atual esteja corrompido).
+    const credentialsEnc = dto.credentials
+      ? this.cryptoService.encrypt(
+          JSON.stringify({
+            clientId: dto.credentials.clientId,
+            clientSecret: dto.credentials.clientSecret,
+          }),
+        )
+      : null;
+
     const rows = await this.db.runInTenantContext(
       accountId,
       (sql) => sql`
@@ -148,7 +161,8 @@ export class IntegrationsService {
         sync_time_2 = CASE WHEN ${dto.syncTime2 !== undefined} THEN ${dto.syncTime2 ?? null}
                            ELSE sync_time_2
                       END,
-        status      = COALESCE(${dto.status ?? null}, status)
+        status          = COALESCE(${dto.status ?? null}, status),
+        credentials_enc = COALESCE(${credentialsEnc}, credentials_enc)
       WHERE id            = ${id}
         AND restaurant_id = ${restaurantId}
         AND account_id    = ${accountId}

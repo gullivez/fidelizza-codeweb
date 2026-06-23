@@ -52,7 +52,9 @@ export class IntegrationsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Atualiza horário de sync ou status da integração' })
+  @ApiOperation({
+    summary: 'Atualiza horário de sync, status ou credenciais da integração',
+  })
   update(
     @Param('restaurantId') restaurantId: string,
     @Param('id') id: string,
