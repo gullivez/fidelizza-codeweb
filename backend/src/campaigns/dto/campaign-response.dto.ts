@@ -34,3 +34,22 @@ export class CampaignPreviewResponseDto {
   @ApiProperty() phone: string;
   @ApiProperty() renderedMessage: string;
 }
+
+export class CampaignTargetItemDto {
+  @ApiProperty() customerId: string;
+  @ApiProperty() customerName: string;
+  @ApiProperty() customerPhone: string;
+  @ApiProperty({
+    enum: ['queued', 'sent', 'delivered', 'read', 'failed'],
+  })
+  status: string;
+  @ApiPropertyOptional({ nullable: true }) sentAt: Date | null;
+  @ApiPropertyOptional({ nullable: true }) failureReason: string | null;
+}
+
+export class CampaignTargetListResponseDto {
+  @ApiProperty({ type: [CampaignTargetItemDto] }) data: CampaignTargetItemDto[];
+  @ApiProperty() total: number;
+  @ApiProperty() page: number;
+  @ApiProperty() limit: number;
+}

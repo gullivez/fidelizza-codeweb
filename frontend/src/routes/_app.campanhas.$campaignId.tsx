@@ -10,6 +10,7 @@ import { SendingProgressBlock } from "@/components/campaign-detail/SendingProgre
 import { FailedAlert } from "@/components/campaign-detail/FailedAlert";
 import { PerformanceFunnel, type FunnelStep } from "@/components/campaign-detail/PerformanceFunnel";
 import { TemplateBlock } from "@/components/campaign-detail/TemplateBlock";
+import { CampaignTargetsTable } from "@/components/campaign-detail/CampaignTargetsTable";
 import {
   CancelScheduleDialog,
   ConfirmDispatchDialog,
@@ -205,6 +206,12 @@ function CampaignDetailPage() {
               </Button>
             </div>
           ) : null}
+        </div>
+      )}
+
+      {campaign.status !== "draft" && (
+        <div className="mt-6">
+          <CampaignTargetsTable restaurantId={rid} campaignId={campaignId} />
         </div>
       )}
 

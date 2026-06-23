@@ -20,6 +20,7 @@ import type {
   CampaignResponseDto,
   CampaignDetailResponseDto,
   CampaignPreviewResponseDto,
+  CampaignTargetListResponseDto,
 } from './dto/campaign-response.dto';
 import type { DispatchCampaignResponseDto } from './dto/dispatch-campaign.dto';
 
@@ -124,6 +125,58 @@ export class CampaignsService {
         read: row['read'] as number,
         failed: row['failed'] as number,
       },
+    };
+  }
+
+  async listTargets(
+    campaignId: string,
+    restaurantId: string,
+    page: number,
+    limit: number,
+  ): Promise<CampaignTargetListResponseDto> {
+    const { accountId } = this.tenantContext.get();
+    const offset = (page - 1) * limit;
+
+    const [rows, countRows] = await Promise.all([
+      this.db.runInTenantContext(
+        accountId,
+        (sql) => sql`
+          SELECT ct.customer_id, ct.name_snapshot, ct.phone_snapshot,
+                 COALESCE(ml.status, 'queued') AS status,
+                 ml.sent_at, ml.error_code
+          FROM campaign_target ct
+          LEFT JOIN message_log ml ON ml.campaign_target_id = ct.id
+          WHERE ct.campaign_id   = ${campaignId}
+            AND ct.restaurant_id = ${restaurantId}
+            AND ct.account_id    = ${accountId}
+          ORDER BY ml.sent_at DESC NULLS LAST, ct.created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `,
+      ),
+      this.db.runInTenantContext(
+        accountId,
+        (sql) => sql`
+          SELECT COUNT(*)::int AS total
+          FROM campaign_target ct
+          WHERE ct.campaign_id   = ${campaignId}
+            AND ct.restaurant_id = ${restaurantId}
+            AND ct.account_id    = ${accountId}
+        `,
+      ),
+    ]);
+
+    return {
+      data: rows.map((r) => ({
+        customerId: r['customer_id'] as string,
+        customerName: r['name_snapshot'] as string,
+        customerPhone: r['phone_snapshot'] as string,
+        status: r['status'] as string,
+        sentAt: (r['sent_at'] as Date | null) ?? null,
+        failureReason: (r['error_code'] as string | null) ?? null,
+      })),
+      total: countRows[0]['total'] as number,
+      page,
+      limit,
     };
   }
 

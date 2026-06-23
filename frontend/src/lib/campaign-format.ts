@@ -35,3 +35,20 @@ export function formatDateTime(iso: string) {
   });
   return `${datePart} às ${timePart}`;
 }
+
+/** dd/MM/yyyy HH:mm em horário de Brasília. */
+export function formatDateTimeShort(iso: string) {
+  const date = new Date(iso);
+  const datePart = date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "America/Sao_Paulo",
+  });
+  const timePart = date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
+  return `${datePart} ${timePart}`;
+}

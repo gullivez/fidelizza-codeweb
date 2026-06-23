@@ -34,6 +34,24 @@ export interface CampaignPreviewResponse {
   renderedMessage: string;
 }
 
+export type CampaignTargetStatus = "queued" | "sent" | "delivered" | "read" | "failed";
+
+export interface ApiCampaignTarget {
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  status: CampaignTargetStatus;
+  sentAt: string | null;
+  failureReason: string | null;
+}
+
+export interface CampaignTargetListResponse {
+  data: ApiCampaignTarget[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export type TemplateVariableMap = Record<
   string,
   { type: "dynamic"; key: string } | { type: "static"; value: string }
@@ -103,6 +121,20 @@ export const campaignsApi = {
     apiRequest<CampaignPreviewResponse>(
       `/restaurants/${restaurantId}/campaigns/${campaignId}/preview`,
     ),
+
+  listTargets: (
+    restaurantId: string,
+    campaignId: string,
+    params: { page?: number; limit?: number } = {},
+  ) => {
+    const q = new URLSearchParams();
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return apiRequest<CampaignTargetListResponse>(
+      `/restaurants/${restaurantId}/campaigns/${campaignId}/targets${qs}`,
+    );
+  },
 
   dispatch: (
     restaurantId: string,

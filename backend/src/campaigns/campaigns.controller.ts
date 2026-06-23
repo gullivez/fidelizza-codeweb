@@ -8,6 +8,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -19,10 +20,12 @@ import {
 import { RestaurantAccessGuard } from '../common/guards/restaurant-access.guard';
 import { CampaignsService } from './campaigns.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { ListCampaignTargetsQueryDto } from './dto/list-campaign-targets-query.dto';
 import type {
   CampaignResponseDto,
   CampaignDetailResponseDto,
   CampaignPreviewResponseDto,
+  CampaignTargetListResponseDto,
 } from './dto/campaign-response.dto';
 import {
   DispatchCampaignDto,
@@ -60,6 +63,23 @@ export class CampaignsController {
     @Param('id') id: string,
   ): Promise<CampaignDetailResponseDto> {
     return this.campaignsService.findOne(id, restaurantId);
+  }
+
+  @Get(':id/targets')
+  @ApiOperation({
+    summary: 'Lista os clientes desta campanha (paginado), com status de envio',
+  })
+  listTargets(
+    @Param('restaurantId') restaurantId: string,
+    @Param('id') id: string,
+    @Query() query: ListCampaignTargetsQueryDto,
+  ): Promise<CampaignTargetListResponseDto> {
+    return this.campaignsService.listTargets(
+      id,
+      restaurantId,
+      query.page,
+      query.limit,
+    );
   }
 
   @Get(':id/preview')
