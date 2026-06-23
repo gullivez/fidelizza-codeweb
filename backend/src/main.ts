@@ -18,7 +18,7 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors();
 
-  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalFilters(new AllExceptionsFilter(app.get(Logger)));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   if (configService.get('nodeEnv') !== 'production') {
