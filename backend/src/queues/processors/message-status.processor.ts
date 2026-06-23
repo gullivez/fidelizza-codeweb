@@ -52,6 +52,7 @@ export class MessageStatusProcessor extends WorkerHost {
       (sql) => sql`
         UPDATE message_log
         SET status       = ${status},
+            sent_at      = CASE WHEN ${status} = 'sent'      THEN now() ELSE sent_at      END,
             delivered_at = CASE WHEN ${status} = 'delivered' THEN now() ELSE delivered_at END,
             read_at      = CASE WHEN ${status} = 'read'      THEN now() ELSE read_at      END
         WHERE id            = ${id}
