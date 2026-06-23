@@ -20,6 +20,7 @@ export class CustomerResponseDto {
   @ApiProperty() createdAt: Date;
   @ApiPropertyOptional({ nullable: true, example: 'champions' })
   segmentName: string | null;
+  @ApiProperty() consentWhatsapp: boolean;
 }
 
 export class CustomerDetailResponseDto extends CustomerResponseDto {
@@ -31,4 +32,9 @@ export class CustomerListResponseDto {
   @ApiProperty() total: number;
   @ApiProperty() page: number;
   @ApiProperty() limit: number;
+}
+
+export class CustomerOptOutResponseDto {
+  @ApiProperty() id: string;
+  @ApiProperty() consentWhatsapp: boolean;
 }

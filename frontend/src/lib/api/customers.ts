@@ -11,6 +11,12 @@ export interface ApiCustomer {
   lastOrderAt: string | null;
   createdAt: string;
   segmentName: string | null;
+  consentWhatsapp: boolean;
+}
+
+export interface CustomerOptOutResponse {
+  id: string;
+  consentWhatsapp: boolean;
 }
 
 export interface ApiOrderSummary {
@@ -48,4 +54,10 @@ export const customersApi = {
 
   get: (restaurantId: string, customerId: string) =>
     apiRequest<ApiCustomerDetail>(`/restaurants/${restaurantId}/customers/${customerId}`),
+
+  optOut: (restaurantId: string, customerId: string) =>
+    apiRequest<CustomerOptOutResponse>(
+      `/restaurants/${restaurantId}/customers/${customerId}/opt-out`,
+      { method: "PATCH" },
+    ),
 };

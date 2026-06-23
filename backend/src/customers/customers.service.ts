@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { TenantContextService } from '../tenant/tenant-context.service';
 import type {
   CustomerResponseDto,
   CustomerDetailResponseDto,
   CustomerListResponseDto,
+  CustomerOptOutResponseDto,
   OrderSummaryDto,
 } from './dto/customer-response.dto';
 
@@ -107,7 +108,7 @@ export class CustomersService {
           SELECT c.id, c.restaurant_id, c.phone, c.name, c.total_orders,
                  c.total_spent::float AS total_spent,
                  c.avg_ticket::float  AS avg_ticket,
-                 c.last_order_at, c.created_at,
+                 c.last_order_at, c.created_at, c.consent_whatsapp,
                  cs.segment_name
           FROM customer c
           LEFT JOIN customer_segment cs
@@ -162,7 +163,7 @@ export class CustomersService {
         SELECT c.id, c.restaurant_id, c.phone, c.name, c.total_orders,
                c.total_spent::float AS total_spent,
                c.avg_ticket::float  AS avg_ticket,
-               c.last_order_at, c.created_at,
+               c.last_order_at, c.created_at, c.consent_whatsapp,
                cs.segment_name
         FROM customer c
         LEFT JOIN customer_segment cs
@@ -209,6 +210,34 @@ export class CustomersService {
     };
   }
 
+  async optOut(
+    restaurantId: string,
+    customerId: string,
+  ): Promise<CustomerOptOutResponseDto> {
+    const { accountId } = this.tenantContext.get();
+
+    const rows = await this.db.runInTenantContext(
+      accountId,
+      (sql) => sql`
+        UPDATE customer
+        SET consent_whatsapp = false
+        WHERE id            = ${customerId}
+          AND restaurant_id = ${restaurantId}
+          AND account_id    = ${accountId}
+        RETURNING id, consent_whatsapp
+      `,
+    );
+
+    if (!rows.length) {
+      throw new NotFoundException('Cliente não encontrado');
+    }
+
+    return {
+      id: rows[0]['id'] as string,
+      consentWhatsapp: rows[0]['consent_whatsapp'] as boolean,
+    };
+  }
+
   private mapCustomerRow(row: Record<string, unknown>): CustomerResponseDto {
     return {
       id: row['id'] as string,
@@ -221,6 +250,7 @@ export class CustomersService {
       lastOrderAt: (row['last_order_at'] as Date | null) ?? null,
       createdAt: row['created_at'] as Date,
       segmentName: (row['segment_name'] as string | null) ?? null,
+      consentWhatsapp: row['consent_whatsapp'] as boolean,
     };
   }
 }

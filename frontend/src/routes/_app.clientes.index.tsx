@@ -13,7 +13,12 @@ import { useLayout } from "@/lib/layout-context";
 import { customersApi } from "@/lib/api/customers";
 import type { ApiCustomer } from "@/lib/api/customers";
 import { segmentsApi } from "@/lib/api/segments";
-import { apiSegmentToLocal, localSegmentToApi, type Customer, type Segment } from "@/lib/mock-customers";
+import {
+  apiSegmentToLocal,
+  localSegmentToApi,
+  type Customer,
+  type Segment,
+} from "@/lib/mock-customers";
 
 const PAGE_SIZE = 20;
 const POLL_INTERVAL_MS = 3_000;
@@ -50,6 +55,7 @@ function mapApiToCustomer(c: ApiCustomer): Customer {
     lastOrderAt: c.lastOrderAt ?? c.createdAt,
     orders: c.totalOrders,
     totalSpent: c.totalSpent,
+    optOut: !c.consentWhatsapp,
   };
 }
 
@@ -64,7 +70,9 @@ function ClientesPage() {
   const [isRecalculating, setIsRecalculating] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setSearchInput(q); }, [q]);
+  useEffect(() => {
+    setSearchInput(q);
+  }, [q]);
 
   useEffect(() => {
     if (searchInput === q) return;
@@ -123,7 +131,12 @@ function ClientesPage() {
   }, [rid, isRecalculating, refetchSegments, queryClient]);
 
   // Cleanup polling on unmount
-  useEffect(() => () => { if (pollRef.current) clearTimeout(pollRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    },
+    [],
+  );
 
   const customers: Customer[] = (data?.data ?? []).map(mapApiToCustomer);
   const total = data?.total ?? 0;
@@ -133,11 +146,18 @@ function ClientesPage() {
   // Build counts for SegmentChips from real API data
   const segmentCounts = (() => {
     const counts: Record<Segment, number> = {
-      todos: 0, campeoes: 0, novos: 0, "em-risco": 0, inativos: 0,
+      todos: 0,
+      campeoes: 0,
+      novos: 0,
+      "em-risco": 0,
+      inativos: 0,
     };
     if (segmentsData) {
       const nameMap: Record<string, Segment> = {
-        champions: "campeoes", new: "novos", at_risk: "em-risco", inactive: "inativos",
+        champions: "campeoes",
+        new: "novos",
+        at_risk: "em-risco",
+        inactive: "inativos",
       };
       for (const s of segmentsData.segments) {
         const key = nameMap[s.name];
@@ -167,9 +187,11 @@ function ClientesPage() {
           disabled={isRecalculating}
           className="h-9 gap-1.5"
         >
-          {isRecalculating
-            ? <Loader2 className="h-4 w-4 animate-spin" />
-            : <RefreshCw className="h-4 w-4" />}
+          {isRecalculating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
           Recalcular
         </Button>
       )}

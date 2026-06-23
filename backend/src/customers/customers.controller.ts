@@ -1,8 +1,16 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { RestaurantAccessGuard } from '../common/guards/restaurant-access.guard';
 import { CustomersService } from './customers.service';
 import { ListCustomersQueryDto } from './dto/list-customers-query.dto';
+import type { CustomerOptOutResponseDto } from './dto/customer-response.dto';
 
 @ApiTags('Customers')
 @ApiBearerAuth()
@@ -33,5 +41,16 @@ export class CustomersController {
     @Param('customerId') customerId: string,
   ) {
     return this.customersService.findOne(restaurantId, customerId);
+  }
+
+  @Patch(':customerId/opt-out')
+  @ApiOperation({
+    summary: 'Desativa o consentimento de WhatsApp do cliente (opt-out)',
+  })
+  optOut(
+    @Param('restaurantId') restaurantId: string,
+    @Param('customerId') customerId: string,
+  ): Promise<CustomerOptOutResponseDto> {
+    return this.customersService.optOut(restaurantId, customerId);
   }
 }

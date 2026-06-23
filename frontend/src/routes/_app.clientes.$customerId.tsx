@@ -1,8 +1,21 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { UserX } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { UserX, MessageCircleOff } from "lucide-react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CustomerKpiStrip } from "@/components/customer/CustomerKpiStrip";
 import { CustomerDetailSkeleton } from "@/components/customer/CustomerDetailSkeleton";
 import { useLayout } from "@/lib/layout-context";
@@ -24,27 +37,51 @@ function formatPhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("55") && digits.length >= 12) {
     const local = digits.slice(2);
-    if (local.length === 11)
-      return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
-    if (local.length === 10)
-      return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+    if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+    if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
   }
   return phone;
 }
 
 function initials(name: string) {
-  return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
 }
 
 function CustomerDetailPage() {
   const { customerId } = Route.useParams();
   const { activeRestaurant } = useLayout();
   const rid = activeRestaurant?.id ?? "";
+  const queryClient = useQueryClient();
+  const [confirmOptOutOpen, setConfirmOptOutOpen] = useState(false);
 
-  const { data: customer, isLoading, isError } = useQuery({
+  const {
+    data: customer,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["customer", rid, customerId],
     queryFn: () => customersApi.get(rid, customerId),
     enabled: !!rid && !!customerId,
+  });
+
+  const optOutMutation = useMutation({
+    mutationFn: () => customersApi.optOut(rid, customerId),
+    onSuccess: () => {
+      queryClient.setQueryData<ApiCustomerDetail | undefined>(
+        ["customer", rid, customerId],
+        (prev) => (prev ? { ...prev, consentWhatsapp: false } : prev),
+      );
+      toast.success("Comunicações desativadas para este cliente.");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Falha ao desativar comunicações");
+    },
   });
 
   if (isLoading) return <CustomerDetailSkeleton />;
@@ -69,6 +106,53 @@ function CustomerDetailPage() {
   return (
     <>
       <CustomerDetailHeader customer={customer} />
+
+      <div className="mb-6 flex items-center justify-between rounded-lg border border-border bg-card p-4">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">Comunicações via WhatsApp</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Controla se este cliente pode receber campanhas futuras.
+          </p>
+        </div>
+        {customer.consentWhatsapp ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-rose-700 border-rose-200 hover:bg-rose-50"
+            onClick={() => setConfirmOptOutOpen(true)}
+            disabled={optOutMutation.isPending}
+          >
+            <MessageCircleOff className="h-4 w-4" />
+            Não desejo receber comunicações
+          </Button>
+        ) : (
+          <StatusBadge variant="neutral">Comunicações desativadas</StatusBadge>
+        )}
+      </div>
+
+      <AlertDialog open={confirmOptOutOpen} onOpenChange={setConfirmOptOutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desativar comunicações deste cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação impedirá que este cliente receba campanhas futuras. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmOptOutOpen(false);
+                optOutMutation.mutate();
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Desativar comunicações
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <CustomerKpiStrip
         totalSpent={customer.totalSpent}
         orders={customer.totalOrders}
@@ -136,7 +220,9 @@ function OrderRow({ order }: { order: ApiOrderSummary }) {
         </span>
       </div>
       <div className="flex items-center gap-4">
-        <span className="text-xs text-muted-foreground">{statusLabel[order.status] ?? order.status}</span>
+        <span className="text-xs text-muted-foreground">
+          {statusLabel[order.status] ?? order.status}
+        </span>
         <span className="num tabular-nums font-medium">{formatBRL(order.totalAmount)}</span>
       </div>
     </div>
