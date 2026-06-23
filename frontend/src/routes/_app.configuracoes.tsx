@@ -47,6 +47,8 @@ function ConfiguracoesPage() {
       if (role === "operator" && (t.id === "conta" || t.id === "restaurantes")) return false;
       // TODO: Sprint pós-MVP — reativar quando tela de restaurantes for implementada
       if (t.id === "restaurantes") return false;
+      // TODO: Sprint pós-MVP — reativar quando fluxo de convite e permissões for implementado
+      if (t.id === "usuarios") return false;
       return true;
     });
   }, [role]);
