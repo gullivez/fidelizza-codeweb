@@ -45,7 +45,8 @@ function ConfiguracoesPage() {
   const visibleTabs = useMemo(() => {
     return ALL_TABS.filter((t) => {
       if (role === "operator" && (t.id === "conta" || t.id === "restaurantes")) return false;
-      if (t.id === "restaurantes" && CURRENT_USER.accountType !== "agency") return false;
+      // TODO: Sprint pós-MVP — reativar quando tela de restaurantes for implementada
+      if (t.id === "restaurantes") return false;
       return true;
     });
   }, [role]);
