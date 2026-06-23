@@ -7,6 +7,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import type { Request, Response } from 'express';
 import type { Logger } from 'nestjs-pino';
 
@@ -35,6 +36,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         { requestId, instance: request.url, code: exception.code },
         exception.message,
       );
+
+      if (exception.status >= 500) Sentry.captureException(exception);
 
       return response.status(exception.status).json({
         type: `${ERROR_BASE_URI}/${exception.code.toLowerCase().replace(/_/g, '-')}`,
@@ -65,6 +68,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
       this.logger.warn({ requestId, instance: request.url, status }, detail);
 
+      if (status >= 500) Sentry.captureException(exception);
+
       return response.status(status).json({
         type: `${ERROR_BASE_URI}/http-error`,
         title,
@@ -79,6 +84,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       { err: exception, requestId, instance: request.url },
       'unhandled exception',
     );
+
+    Sentry.captureException(exception);
 
     return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       type: `${ERROR_BASE_URI}/internal-error`,

@@ -44,4 +44,6 @@ export default () => ({
     user: process.env.BULL_BOARD_USER,
     password: process.env.BULL_BOARD_PASSWORD,
   },
+
+  sentryDsn: process.env.SENTRY_DSN,
 });

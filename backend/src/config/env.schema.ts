@@ -39,6 +39,8 @@ export const envSchema = z.object({
   BULL_BOARD_PASSWORD: z
     .string()
     .min(8, 'BULL_BOARD_PASSWORD deve ter no mínimo 8 caracteres'),
+
+  SENTRY_DSN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
