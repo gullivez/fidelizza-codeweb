@@ -114,7 +114,9 @@ function CustomerDetailPage() {
             Controla se este cliente pode receber campanhas futuras.
           </p>
         </div>
-        {customer.consentWhatsapp ? (
+        {customer.consentWhatsapp === false ? (
+          <StatusBadge variant="neutral">Comunicações desativadas</StatusBadge>
+        ) : (
           <Button
             variant="outline"
             size="sm"
@@ -125,8 +127,6 @@ function CustomerDetailPage() {
             <MessageCircleOff className="h-4 w-4" />
             Não desejo receber comunicações
           </Button>
-        ) : (
-          <StatusBadge variant="neutral">Comunicações desativadas</StatusBadge>
         )}
       </div>
 

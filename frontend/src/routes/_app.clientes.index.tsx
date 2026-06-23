@@ -55,7 +55,7 @@ function mapApiToCustomer(c: ApiCustomer): Customer {
     lastOrderAt: c.lastOrderAt ?? c.createdAt,
     orders: c.totalOrders,
     totalSpent: c.totalSpent,
-    optOut: !c.consentWhatsapp,
+    optOut: c.consentWhatsapp === false,
   };
 }
 
