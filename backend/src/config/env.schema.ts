@@ -34,6 +34,11 @@ export const envSchema = z.object({
 
   CAMPAIGN_RATE_LIMIT_PER_SEC: z.coerce.number().default(10),
   APP_BASE_URL: z.string().url().default('http://localhost:3000'),
+
+  BULL_BOARD_USER: z.string().min(1, 'BULL_BOARD_USER é obrigatório'),
+  BULL_BOARD_PASSWORD: z
+    .string()
+    .min(8, 'BULL_BOARD_PASSWORD deve ter no mínimo 8 caracteres'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -39,4 +39,9 @@ export default () => ({
   app: {
     baseUrl: process.env.APP_BASE_URL ?? 'http://localhost:3000',
   },
+
+  bullBoard: {
+    user: process.env.BULL_BOARD_USER,
+    password: process.env.BULL_BOARD_PASSWORD,
+  },
 });

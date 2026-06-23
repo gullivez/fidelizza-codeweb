@@ -24,6 +24,8 @@
     "backfill:conversions": "ts-node -r tsconfig-paths/register src/database/seeds/backfill-conversions.ts"
   },
   "dependencies": {
+    "@bull-board/api": "^8.0.1",
+    "@bull-board/express": "^8.0.1",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
